@@ -71,19 +71,19 @@ SELECT * FROM sale_detail;
 ```
 * 创建新表，在SELECT语句中使用常量作为列的值
   - 指定列的名字
-  ```sql
-  CREATE TABLE sale_detail_ctas2
-  AS
-  SELECT shop_name, customer_id, total_price, '2013' AS sale_date, 'China' AS region
-  FROM sale_detail;  
- ```
- - 不指定列的名字
-  ```sql
-  CREATE TABLE sale_detail_ctas3
-  AS
-  SELECT shop_name, customer_id, total_price, '2013', 'China' 
-  FROM sale_detail;
-  ```
+    ```sql
+    CREATE TABLE sale_detail_ctas2
+    AS
+    SELECT shop_name, customer_id, total_price, '2013' AS sale_date, 'China' AS region
+    FROM sale_detail;  
+    ```
+  - 不指定列的名字
+    ```sql
+    CREATE TABLE sale_detail_ctas3
+    AS
+    SELECT shop_name, customer_id, total_price, '2013', 'China'
+    FROM sale_detail;
+    ```
 * 创建新表，与已有表的结构相同，并设置生命周期
 ```sql
 CREATE TABLE sale_detail_like LIKE sale_detail LIFECYCLE 10;

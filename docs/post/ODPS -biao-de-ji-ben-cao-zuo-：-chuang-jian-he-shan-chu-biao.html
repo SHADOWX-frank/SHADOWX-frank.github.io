@@ -350,22 +350,20 @@ boolean_name <span class="pl-k">BOOLEAN</span> <span class="pl-k">NOT NULL</span
 <ul>
 <li>创建新表，在SELECT语句中使用常量作为列的值
 <ul>
-<li>指定列的名字</li>
-</ul>
+<li>指定列的名字
 <div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-k">CREATE</span> <span class="pl-k">TABLE</span> <span class="pl-en">sale_detail_ctas2</span>
 <span class="pl-k">AS</span>
 <span class="pl-k">SELECT</span> shop_name, customer_id, total_price, <span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span> <span class="pl-k">AS</span> sale_date, <span class="pl-s"><span class="pl-pds">'</span>China<span class="pl-pds">'</span></span> <span class="pl-k">AS</span> region
 <span class="pl-k">FROM</span> sale_detail;  </pre></div>
 </li>
+<li>不指定列的名字
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-k">CREATE</span> <span class="pl-k">TABLE</span> <span class="pl-en">sale_detail_ctas3</span>
+<span class="pl-k">AS</span>
+<span class="pl-k">SELECT</span> shop_name, customer_id, total_price, <span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>China<span class="pl-pds">'</span></span>
+<span class="pl-k">FROM</span> sale_detail;</pre></div>
+</li>
 </ul>
-<pre class="notranslate"><code class="notranslate">- 不指定列的名字
- ```sql
- CREATE TABLE sale_detail_ctas3
- AS
- SELECT shop_name, customer_id, total_price, '2013', 'China' 
- FROM sale_detail;
-</code></pre>
-<ul>
+</li>
 <li>创建新表，与已有表的结构相同，并设置生命周期</li>
 </ul>
 <div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-k">CREATE</span> <span class="pl-k">TABLE</span> <span class="pl-en">sale_detail_like</span> <span class="pl-k">LIKE</span> sale_detail LIFECYCLE <span class="pl-c1">10</span>;</pre></div>
