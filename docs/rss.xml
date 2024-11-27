@@ -1,5 +1,15 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Tue, 26 Nov 2024 12:19:11 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>ODPS 表的基本操作：创建和删除表</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-chuang-jian-he-shan-chu-biao.html</link><description># 创建表&#13;
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Wed, 27 Nov 2024 09:45:40 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>ODPS表的基本操作：分区和列操作</title><link>https://SHADOWX-frank.github.io/post/ODPS-biao-de-ji-ben-cao-zuo-%EF%BC%9A-fen-qu-he-lie-cao-zuo.html</link><description># 分区操作&#13;
+## 添加分区&#13;
+#### SQL代码格式&#13;
+```sql&#13;
+alter table &lt;table_name&gt; add [if not exists] partition &lt;pt_spec&gt; [partition &lt;pt_spec&gt; partition &lt;pt_spec&gt;...];&#13;
+```&#13;
+|参数| 是否必填 |说明|&#13;
+|-----|:----:|----------|&#13;
+|table_name |必填 |带新增分区的分区表名&#13;
+|if not exists |可选| 如果未指定if not exists而同名的分区已存在，会执行失败并返回报错|&#13;
+|pt_spec| 必填 | 新增的分区，格式为(partition_col1 = partition_col_value1, partition_col2 = partition_col_value2, ...)。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/ODPS-biao-de-ji-ben-cao-zuo-%EF%BC%9A-fen-qu-he-lie-cao-zuo.html</guid><pubDate>Wed, 27 Nov 2024 09:45:13 +0000</pubDate></item><item><title>ODPS 表的基本操作：创建和删除表</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-chuang-jian-he-shan-chu-biao.html</link><description># 创建表&#13;
 ## 直接创建新表&#13;
 #### SQL代码格式&#13;
 ```sql&#13;
