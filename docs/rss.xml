@@ -1,5 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Sun, 08 Dec 2024 13:53:38 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>ODPS 表的基本操作：查询表(1)</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%281%29.html</link><description># 查询表基本语法：SELECT语法&#13;
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Sun, 08 Dec 2024 13:56:29 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>ODPS 表的基本操作：查询表(2)</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%282%29.html</link><description># 交集（INTERSECT）、并集（UNION）和补集（EXCEPT）&#13;
+## 交集&#13;
+#### SQL代码格式&#13;
+```sql&#13;
+--取交集不去重。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%282%29.html</guid><pubDate>Sun, 08 Dec 2024 13:52:19 +0000</pubDate></item><item><title>ODPS 表的基本操作：查询表(1)</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%281%29.html</link><description># 查询表基本语法：SELECT语法&#13;
 ## 总体格式&#13;
 #### SQL代码格式&#13;
 ```sql&#13;
@@ -16,7 +20,7 @@ SELECT [all | distinct] &lt;SELECT_expr&gt;[, &lt;except_expr&gt;][, &lt;replace
 ```&#13;
 #### 源数据示例&#13;
 ```sql&#13;
---创建一张分区表sale_detail。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%281%29.html</guid><pubDate>Thu, 05 Dec 2024 07:45:44 +0000</pubDate></item><item><title>ODPS表的基本操作：插入或覆写数据（INSERT INTO | INSERT OVERWRITE）</title><link>https://SHADOWX-frank.github.io/post/ODPS-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-ru-huo-fu-xie-shu-ju-%EF%BC%88INSERT%20INTO%20-%20INSERT%20OVERWRITE%EF%BC%89.html</link><description># 插入数据&amp;覆写数据&#13;
+--创建一张分区表sale_detail。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%281%29.html</guid><pubDate>Thu, 05 Dec 2024 07:45:44 +0000</pubDate></item><item><title>ODPS 表的基本操作：插入或覆写数据（INSERT INTO | INSERT OVERWRITE）</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-ru-huo-fu-xie-shu-ju-%EF%BC%88INSERT%20INTO%20-%20INSERT%20OVERWRITE%EF%BC%89.html</link><description># 插入数据&amp;覆写数据&#13;
 #### SQL代码格式&#13;
 ```sql&#13;
 insert {into|overwrite} table &lt;table_name&gt; [partition (&lt;pt_spec&gt;)] [(&lt;col_name&gt; [,&lt;col_name&gt; ...)]]&#13;
@@ -34,7 +38,7 @@ from &lt;from_statement&gt;&#13;
 &#13;
 |进阶参数| 是否必填 |说明|&#13;
 |-----|:----:|----------|&#13;
-|zorder by &lt;zcol_name&gt; [, &lt;zcol_name&gt; ...]|可选|向表或分区写入数据时，支持根据指定的一列或多列（select_statement对应表中的列），把排序列数据相近的行排列在一起，提升查询时的过滤性能，在一定程度上降低存储成本。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/ODPS-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-ru-huo-fu-xie-shu-ju-%EF%BC%88INSERT%20INTO%20-%20INSERT%20OVERWRITE%EF%BC%89.html</guid><pubDate>Thu, 28 Nov 2024 07:19:59 +0000</pubDate></item><item><title>ODPS 表的基本操作：分区和列操作</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-fen-qu-he-lie-cao-zuo.html</link><description># 分区操作&#13;
+|zorder by &lt;zcol_name&gt; [, &lt;zcol_name&gt; ...]|可选|向表或分区写入数据时，支持根据指定的一列或多列（select_statement对应表中的列），把排序列数据相近的行排列在一起，提升查询时的过滤性能，在一定程度上降低存储成本。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-ru-huo-fu-xie-shu-ju-%EF%BC%88INSERT%20INTO%20-%20INSERT%20OVERWRITE%EF%BC%89.html</guid><pubDate>Thu, 28 Nov 2024 07:19:59 +0000</pubDate></item><item><title>ODPS 表的基本操作：分区和列操作</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-fen-qu-he-lie-cao-zuo.html</link><description># 分区操作&#13;
 ## 添加分区&#13;
 #### SQL代码格式&#13;
 ```sql&#13;

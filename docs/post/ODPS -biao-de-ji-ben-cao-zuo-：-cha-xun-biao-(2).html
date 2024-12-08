@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="# 交集（INTERSECT）、并集（UNION）和补集（EXCEPT）
+## 交集
+#### SQL代码格式
+```sql
+--取交集不去重。">
+<meta property="og:title" content="ODPS 表的基本操作：查询表(2)">
+<meta property="og:description" content="# 交集（INTERSECT）、并集（UNION）和补集（EXCEPT）
+## 交集
+#### SQL代码格式
+```sql
+--取交集不去重。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%282%29.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>ODPS 表的基本操作：查询表(2)</title>
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">ODPS 表的基本操作：查询表(2)</h1>
+<div class="title-right">
+    <a href="https://SHADOWX-frank.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/SHADOWX-frank/SHADOWX-frank.github.io/issues/6" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h1>交集（INTERSECT）、并集（UNION）和补集（EXCEPT）</h1>
+<h2>交集</h2>
+<h4>SQL代码格式</h4>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>取交集不去重。</span>
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> intersect all <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;
+<span class="pl-c"><span class="pl-c">--</span>取交集并去重。intersect效果等同于intersect distinct。</span>
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> intersect [distinct] <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;</pre></div>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>参数</th>
+<th align="center">是否必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>select_statement1、select_statement2</td>
+<td align="center">必填</td>
+<td>select语句</td>
+</tr>
+<tr>
+<td>distinct</td>
+<td align="center">可选</td>
+<td>对两个数据集取交集的结果去重</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h4>使用示例</h4>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>对两个数据集取交集，不去重</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>) t(a, b) 
+intersect all 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">7</span>) t(a, b);
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">3</span>          | <span class="pl-c1">4</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>对两个查询结果取交集并去重</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>) t(a, b) 
+intersect distinct 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">7</span>) t(a, b);
+<span class="pl-c"><span class="pl-c">--</span>等效于如下语句。</span>
+<span class="pl-k">select distinct</span> <span class="pl-k">*</span> <span class="pl-k">from</span> 
+(<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>) t(a, b) 
+intersect all 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">7</span>) t(a, b)) t;
+
+<span class="pl-k">-</span>返回结果
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">3</span>          | <span class="pl-c1">4</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<h2>并集</h2>
+<h4>SQL代码格式</h4>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>取并集不去重。</span>
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> <span class="pl-k">union all</span> <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;
+<span class="pl-c"><span class="pl-c">--</span>取并集并去重。</span>
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> <span class="pl-k">union</span> [distinct] <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;</pre></div>
+<h4>SQL注意事项</h4>
+<ul>
+<li>存在多个<code class="notranslate">union all</code>，支持通过括号指定<code class="notranslate">union all</code>的优先级</li>
+<li><code class="notranslate">union</code>后如果有<code class="notranslate">cluster by</code>、<code class="notranslate">distribute by</code>、<code class="notranslate">sort by</code>、<code class="notranslate">order by</code>或<code class="notranslate">limit</code>子句时，如果设置<code class="notranslate">set odps.sql.type.system.odps2=false</code>;，其作用于<code class="notranslate">union</code>的最后一个<code class="notranslate">select_statement</code>；如果设置<code class="notranslate">set odps.sql.type.system.odps2=true</code>;时，作用于前面所有<code class="notranslate">union</code>的结果。</li>
+</ul>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>参数</th>
+<th align="center">是否必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>select_statement1、select_statement2</td>
+<td align="center">必填</td>
+<td>select语句</td>
+</tr>
+<tr>
+<td>distinct</td>
+<td align="center">可选</td>
+<td>对两个数据集取并集的结果去重</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h4>SQL使用示例</h4>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>对两个数据集取并集、不去重</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>) t(a, b) 
+<span class="pl-k">union all</span> 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">4</span>) t(a, b);
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">3</span>          | <span class="pl-c1">4</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">4</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>对两个数据集取并集并去重</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>) t(a, b)
+<span class="pl-k">union</span> distinct 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">4</span>) t(a, b);
+<span class="pl-c"><span class="pl-c">--</span>等效于如下语句。</span>
+<span class="pl-k">select distinct</span> <span class="pl-k">*</span> <span class="pl-k">from</span> (
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>) t(a, b) 
+<span class="pl-k">union all</span> 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">4</span>) t(a, b));
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">4</span>          |
+| <span class="pl-c1">3</span>          | <span class="pl-c1">4</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>通过括号指定union all的优先级</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>) t(a, b)
+<span class="pl-k">union all</span> 
+(<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>) t(a, b)
+<span class="pl-k">union all</span> 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">4</span>) t(a, b));
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">5</span>          | <span class="pl-c1">6</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">3</span>          | <span class="pl-c1">4</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">4</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>union后有cluster by、distribute by、sort by、order by或limit子句，设置set odps.sql.type.system.odps2=true;属性</span>
+<span class="pl-k">set</span> <span class="pl-c1">odps</span>.<span class="pl-c1">sql</span>.<span class="pl-c1">type</span>.<span class="pl-c1">system</span>.odps2<span class="pl-k">=</span>true;
+<span class="pl-k">select</span> explode(array(<span class="pl-c1">3</span>, <span class="pl-c1">1</span>)) <span class="pl-k">as</span> (a) <span class="pl-k">union all</span> <span class="pl-k">select</span> explode(array(<span class="pl-c1">0</span>, <span class="pl-c1">4</span>, <span class="pl-c1">2</span>)) <span class="pl-k">as</span> (a) <span class="pl-k">order by</span> a <span class="pl-k">limit</span> <span class="pl-c1">3</span>;
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+</span>
+| a          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+</span>
+| <span class="pl-c1">0</span>          |
+| <span class="pl-c1">1</span>          |
+| <span class="pl-c1">2</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+</span></pre></div>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>union后有cluster by、distribute by、sort by、order by或limit子句，设置set odps.sql.type.system.odps2=false;属性。</span>
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+</span>
+| a          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+</span>
+| <span class="pl-c1">3</span>          |
+| <span class="pl-c1">1</span>          |
+| <span class="pl-c1">0</span>          |
+| <span class="pl-c1">2</span>          |
+| <span class="pl-c1">4</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+</span></pre></div>
+<h2>补集</h2>
+<h4>SQL命令格式</h4>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>取补集不去重。</span>
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> except all <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> minus all <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;
+<span class="pl-c"><span class="pl-c">--</span>取补集并去重。</span>
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> except [distinct] <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;
+<span class="pl-k">&lt;</span>select_statement1<span class="pl-k">&gt;</span> minus [distinct] <span class="pl-k">&lt;</span>select_statement2<span class="pl-k">&gt;</span>;</pre></div>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>参数</th>
+<th align="center">是否必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>select_statement1、select_statement2</td>
+<td align="center">必填</td>
+<td>select语句</td>
+</tr>
+<tr>
+<td>distinct</td>
+<td align="center">可选</td>
+<td>对取补集的结果去重</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h4>SQL使用示例</h4>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>求数据集的补集，不去重</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">7</span>, <span class="pl-c1">8</span>) t(a, b)
+except all 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">9</span>, <span class="pl-c1">10</span>) t(a, b);
+<span class="pl-c"><span class="pl-c">--</span>等效于如下语句。</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">7</span>, <span class="pl-c1">8</span>) t(a, b)
+minus all 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">9</span>, <span class="pl-c1">10</span>) t(a, b);
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">3</span>          | <span class="pl-c1">4</span>          |
+| <span class="pl-c1">7</span>          | <span class="pl-c1">8</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>求数据集的补集并去重</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">7</span>, <span class="pl-c1">8</span>) t(a, b)
+except distinct 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">9</span>, <span class="pl-c1">10</span>) t(a, b);
+<span class="pl-c"><span class="pl-c">--</span>等效于如下语句。</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">7</span>, <span class="pl-c1">8</span>) t(a, b)
+minus distinct 
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">9</span>, <span class="pl-c1">10</span>) t(a, b);
+<span class="pl-c"><span class="pl-c">--</span>等效于如下语句。</span>
+<span class="pl-k">select distinct</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">7</span>, <span class="pl-c1">8</span>) t(a, b) except all <span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> <span class="pl-k">values</span> (<span class="pl-c1">3</span>, <span class="pl-c1">4</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">5</span>, <span class="pl-c1">6</span>), (<span class="pl-c1">9</span>, <span class="pl-c1">10</span>) t(a, b);
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| a          | b          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-c1">1</span>          | <span class="pl-c1">2</span>          |
+| <span class="pl-c1">7</span>          | <span class="pl-c1">8</span>          |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<h1>JOIN</h1>
+<h2>JOIN语法注意事项</h2>
+<ul>
+<li>使用<code class="notranslate">JOIN</code>时，会在计算中自动加入<code class="notranslate">JOIN</code>的<code class="notranslate">key is not null</code>的过滤条件，去除关联键为<code class="notranslate">NULL</code>的值所在行</li>
+<li><code class="notranslate">join</code>操作的使用限制有两个：一是不支持无<code class="notranslate">on</code>条件的连接，二是只允许出现<code class="notranslate">and</code>连接的等值条件，但可以通过mapjoin操作使用不等值连接或or连接多个条件</li>
+</ul>
+<h2>SQL命令格式</h2>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-k">&lt;</span>table_reference<span class="pl-k">&gt;</span> <span class="pl-k">join</span> <span class="pl-k">&lt;</span>table_factor<span class="pl-k">&gt;</span> [<span class="pl-k">&lt;</span>join_condition<span class="pl-k">&gt;</span>]
+| <span class="pl-k">&lt;</span>table_reference<span class="pl-k">&gt;</span> {left outer|right outer|full outer|inner|natural} <span class="pl-k">join</span> <span class="pl-k">&lt;</span>table_reference<span class="pl-k">&gt;</span> <span class="pl-k">&lt;</span>join_condition<span class="pl-k">&gt;</span></pre></div>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>参数</th>
+<th align="center">是否必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>table_reference</td>
+<td align="center">必填</td>
+<td>待执行<code class="notranslate">join</code>操作的左表查询语句。格式为`table_name [alias]</td>
+</tr>
+<tr>
+<td>table_factor</td>
+<td align="center">必填</td>
+<td>待执行<code class="notranslate">join</code>操作的右表或表查询语句。格式为`table_name [alias]</td>
+</tr>
+<tr>
+<td>join_condition</td>
+<td align="center">可选</td>
+<td><code class="notranslate">join</code>连接条件，是一个或多个等式表达式组合。格式为<code class="notranslate">on equality_expression [and equality_expression]...，equality_expression</code>为等式表达式。</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h2>SQL示例数据</h2>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>创建分区表sale_detail和sale_detail_jt。</span>
+<span class="pl-k">create</span> <span class="pl-k">table</span> <span class="pl-en">if</span> not exists sale_detail
+(
+shop_name     string,
+customer_id   string,
+total_price   double
+)
+partitioned by (sale_date string, region string);
+<span class="pl-k">create</span> <span class="pl-k">table</span> <span class="pl-en">if</span> not exists sale_detail_jt
+(
+shop_name     string,
+customer_id   string,
+total_price   double
+)
+partitioned by (sale_date string, region string);
+
+<span class="pl-c"><span class="pl-c">--</span>向源表增加分区。</span>
+<span class="pl-k">alter</span> <span class="pl-k">table</span> sale_detail add partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>) partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2014<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>shanghai<span class="pl-pds">'</span></span>);
+<span class="pl-k">alter</span> <span class="pl-k">table</span> sale_detail_jt add partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>);
+
+<span class="pl-c"><span class="pl-c">--</span>向源表追加数据。</span>
+<span class="pl-k">insert into</span> sale_detail partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>) <span class="pl-k">values</span> (<span class="pl-s"><span class="pl-pds">'</span>s1<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c1<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">1</span>),(<span class="pl-s"><span class="pl-pds">'</span>s2<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>),(<span class="pl-s"><span class="pl-pds">'</span>s3<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c3<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">3</span>);
+<span class="pl-k">insert into</span> sale_detail partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2014<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>shanghai<span class="pl-pds">'</span></span>) <span class="pl-k">values</span> (<span class="pl-s"><span class="pl-pds">'</span>null<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c5<span class="pl-pds">'</span></span>,<span class="pl-k">null</span>),(<span class="pl-s"><span class="pl-pds">'</span>s6<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c6<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">4</span>),(<span class="pl-s"><span class="pl-pds">'</span>s7<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c7<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">5</span>);
+<span class="pl-k">insert into</span> sale_detail_jt partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>) <span class="pl-k">values</span> (<span class="pl-s"><span class="pl-pds">'</span>s1<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c1<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">1</span>),(<span class="pl-s"><span class="pl-pds">'</span>s2<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>),(<span class="pl-s"><span class="pl-pds">'</span>s5<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>);
+
+查询表sale_detail和sale_detail_jt中的数据，命令示例如下：
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> sale_detail;
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+------------+------------+</span>
+| shop_name  | customer_id | total_price | sale_date  | region     |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+------------+------------+</span>
+| s1         | c1          | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">2013</span>       | china      |
+| s2         | c2          | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">2013</span>       | china      |
+| s3         | c3          | <span class="pl-c1">100</span>.<span class="pl-c1">3</span>       | <span class="pl-c1">2013</span>       | china      |
+| <span class="pl-k">null</span>       | c5          | <span class="pl-k">NULL</span>        | <span class="pl-c1">2014</span>       | shanghai   |
+| s6         | c6          | <span class="pl-c1">100</span>.<span class="pl-c1">4</span>       | <span class="pl-c1">2014</span>       | shanghai   |
+| s7         | c7          | <span class="pl-c1">100</span>.<span class="pl-c1">5</span>       | <span class="pl-c1">2014</span>       | shanghai   |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+------------+------------+</span>
+<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> sale_detail_jt;
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+------------+------------+</span>
+| shop_name  | customer_id | total_price | sale_date  | region     |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+------------+------------+</span>
+| s1         | c1          | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">2013</span>       | china      |
+| s2         | c2          | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">2013</span>       | china      |
+| s5         | c2          | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">2013</span>       | china      |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+------------+------------+</span>
+
+<span class="pl-c"><span class="pl-c">--</span>创建做关联的表。</span>
+<span class="pl-k">create</span> <span class="pl-k">table</span> <span class="pl-en">shop</span> <span class="pl-k">as</span> <span class="pl-k">select</span> shop_name, customer_id, total_price <span class="pl-k">from</span> sale_detail;</pre></div>
+<h4>SQL使用示例</h4>
+<ul>
+<li>左连接</li>
+</ul>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>由于表sale_detail_jt及sale_detail中都有shop_name列，因此需要在select子句中使用别名进行区分。</span>
+<span class="pl-k">select</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> ashop, <span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> bshop <span class="pl-k">from</span> sale_detail_jt a 
+       <span class="pl-k">left outer join</span> sale_detail b <span class="pl-k">on</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span><span class="pl-k">=</span><span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span>;
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| ashop      | bshop      |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| s2         | s2         |
+| s1         | s1         |
+| s5         | <span class="pl-k">NULL</span>       |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<ul>
+<li>右连接</li>
+</ul>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>由于表sale_detail_jt及sale_detail中都有shop_name列，因此需要在select子句中使用别名进行区分。</span>
+<span class="pl-k">select</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> ashop, <span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> bshop <span class="pl-k">from</span> sale_detail_jt a 
+       <span class="pl-k">right outer join</span> sale_detail b <span class="pl-k">on</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span><span class="pl-k">=</span><span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span>;
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| ashop      | bshop      |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-k">NULL</span>       | s3         |
+| <span class="pl-k">NULL</span>       | s6         |
+| <span class="pl-k">NULL</span>       | <span class="pl-k">null</span>       |
+| s2         | s2         |
+| <span class="pl-k">NULL</span>       | s7         |
+| s1         | s1         |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<ul>
+<li>全连接</li>
+</ul>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>由于表sale_detail_jt及sale_detail中都有shop_name列，因此需要在select子句中使用别名进行区分。</span>
+<span class="pl-k">select</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> ashop, <span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> bshop <span class="pl-k">from</span> sale_detail_jt a 
+       full outer <span class="pl-k">join</span> sale_detail b <span class="pl-k">on</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span><span class="pl-k">=</span><span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span>;
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| ashop      | bshop      |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| <span class="pl-k">NULL</span>       | s3         |
+| <span class="pl-k">NULL</span>       | s6         |
+| s2         | s2         |
+| <span class="pl-k">NULL</span>       | <span class="pl-k">null</span>       |
+| <span class="pl-k">NULL</span>       | s7         |
+| s1         | s1         |
+| s5         | <span class="pl-k">NULL</span>       |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<ul>
+<li>内连接</li>
+</ul>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>由于表sale_detail_jt及sale_detail中都有shop_name列，因此需要在select子句中使用别名进行区分。</span>
+<span class="pl-k">select</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> ashop, <span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">as</span> bshop <span class="pl-k">from</span> sale_detail_jt a 
+       <span class="pl-k">inner join</span> sale_detail b <span class="pl-k">on</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span><span class="pl-k">=</span><span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span>;
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| ashop      | bshop      |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span>
+| s2         | s2         |
+| s1         | s1         |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+------------+</span></pre></div>
+<ul>
+<li><code class="notranslate">join</code>与<code class="notranslate">where</code>相结合</li>
+</ul>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>执行SQL语句。</span>
+<span class="pl-k">select</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span>
+    ,<span class="pl-c1">a</span>.<span class="pl-c1">customer_id</span>
+    ,<span class="pl-c1">a</span>.<span class="pl-c1">total_price</span>
+        ,<span class="pl-c1">b</span>.<span class="pl-c1">total_price</span>
+<span class="pl-k">from</span>  (<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> sale_detail <span class="pl-k">where</span> region <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>china<span class="pl-pds">"</span></span>) a
+<span class="pl-k">left join</span> (<span class="pl-k">select</span> <span class="pl-k">*</span> <span class="pl-k">from</span> sale_detail_jt <span class="pl-k">where</span> region <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>china<span class="pl-pds">"</span></span>) b
+<span class="pl-k">on</span>   <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">=</span> <span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span>;
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+--------------+</span>
+| shop_name  | customer_id | total_price | total_price2 |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+--------------+</span>
+| s1         | c1          | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>        |
+| s2         | c2          | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>        |
+| s3         | c3          | <span class="pl-c1">100</span>.<span class="pl-c1">3</span>       | <span class="pl-k">NULL</span>         |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+--------------+</span></pre></div>
+<ul>
+<li>错误命令示例</li>
+</ul>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-k">select</span> <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span>
+    ,<span class="pl-c1">a</span>.<span class="pl-c1">customer_id</span>
+    ,<span class="pl-c1">a</span>.<span class="pl-c1">total_price</span>
+        ,<span class="pl-c1">b</span>.<span class="pl-c1">total_price</span>
+<span class="pl-k">from</span>  sale_detail a
+<span class="pl-k">left join</span> sale_detail_jt b
+<span class="pl-k">on</span>   <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span> <span class="pl-k">=</span> <span class="pl-c1">b</span>.<span class="pl-c1">shop_name</span>
+<span class="pl-k">where</span>  <span class="pl-c1">a</span>.<span class="pl-c1">region</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>china<span class="pl-pds">"</span></span> <span class="pl-k">and</span> <span class="pl-c1">b</span>.<span class="pl-c1">region</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>china<span class="pl-pds">"</span></span>;
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+--------------+</span>
+| shop_name  | customer_id | total_price | total_price2 |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+--------------+</span>
+| s1         | c1          | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>        |
+| s2         | c2          | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>        |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>----------+-------------+-------------+--------------+</span></pre></div>
+<h1>MAPJOIN HINT</h1>
+<h2>mapjoin使用限制</h2>
+<ul>
+<li><code class="notranslate">mapjoin</code>在Map阶段会将指定表的数据全部加载在内存中，因此指定的表仅能为小表，且表被加载到内存后占用的总内存不得超过512 MB。由于MaxCompute是压缩存储，因此小表在被加载到内存后，数据大小会急剧膨胀。此处的512 MB是指加载到内存后的空间大小。</li>
+<li><code class="notranslate">mapjoin</code>中<code class="notranslate">join</code>操作的限制：
+<ul>
+<li><code class="notranslate">left outer join</code>的左表必须是大表</li>
+<li><code class="notranslate">right outer join</code>的右表必须是大表</li>
+<li>不支持<code class="notranslate">full outer join</code></li>
+<li><code class="notranslate">inner join</code>的左表或右表均可以是大表</li>
+</ul>
+</li>
+</ul>
+<h2>mapjoin使用方法</h2>
+<p>您需要在<code class="notranslate">select</code>语句中使用Hint提示<code class="notranslate">/*+ mapjoin(&lt;table_name&gt;) */</code>才会执行<code class="notranslate">mapjoin</code>。</p>
+<ul>
+<li>引用小表或子查询时，需要引用别名</li>
+<li><code class="notranslate">mapjoin</code>支持小表为子查询</li>
+<li>在<code class="notranslate">mapjoin</code>中，可以使用不等值连接或<code class="notranslate">or</code>连接多个条件</li>
+<li><code class="notranslate">mapjoin</code>中多个小表用英文逗号（,）分隔，例如<code class="notranslate">/*+ mapjoin(a,b,c)*/</code></li>
+</ul>
+<h2>SQL示例数据</h2>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span>创建一张分区表sale_detail。</span>
+<span class="pl-k">create</span> <span class="pl-k">table</span> <span class="pl-en">if</span> not exists sale_detail
+(
+shop_name     string,
+customer_id   string,
+total_price   double
+)
+partitioned by (sale_date string, region string);
+
+<span class="pl-k">create</span> <span class="pl-k">table</span> <span class="pl-en">if</span> not exists sale_detail_sj
+(
+shop_name     string,
+customer_id   string,
+total_price   double
+)
+partitioned by (sale_date string, region string);
+
+<span class="pl-c"><span class="pl-c">--</span>向源表增加分区。</span>
+<span class="pl-k">alter</span> <span class="pl-k">table</span> sale_detail add partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>);
+<span class="pl-k">alter</span> <span class="pl-k">table</span> sale_detail_sj add partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>);
+
+<span class="pl-c"><span class="pl-c">--</span>向源表追加数据。</span>
+<span class="pl-k">insert into</span> sale_detail partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>) <span class="pl-k">values</span> (<span class="pl-s"><span class="pl-pds">'</span>s1<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c1<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">1</span>),(<span class="pl-s"><span class="pl-pds">'</span>s2<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>),(<span class="pl-s"><span class="pl-pds">'</span>s3<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c3<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">3</span>);
+<span class="pl-k">insert into</span> sale_detail_sj partition (sale_date<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>2013<span class="pl-pds">'</span></span>, region<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">'</span>china<span class="pl-pds">'</span></span>) <span class="pl-k">values</span> (<span class="pl-s"><span class="pl-pds">'</span>s1<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c1<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">1</span>),(<span class="pl-s"><span class="pl-pds">'</span>s2<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>),(<span class="pl-s"><span class="pl-pds">'</span>s5<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>),(<span class="pl-s"><span class="pl-pds">'</span>s2<span class="pl-pds">'</span></span>,<span class="pl-s"><span class="pl-pds">'</span>c2<span class="pl-pds">'</span></span>,<span class="pl-c1">100</span>.<span class="pl-c1">2</span>);</pre></div>
+<h2>SQL使用示例</h2>
+<div class="highlight highlight-source-sql"><pre class="notranslate"><span class="pl-c"><span class="pl-c">--</span> 使用mapjoin查询</span>
+<span class="pl-k">select</span> <span class="pl-c"><span class="pl-c">/*</span>+ mapjoin(a) <span class="pl-c">*/</span></span>
+        <span class="pl-c1">a</span>.<span class="pl-c1">shop_name</span>,
+        <span class="pl-c1">a</span>.<span class="pl-c1">total_price</span>,
+        <span class="pl-c1">b</span>.<span class="pl-c1">total_price</span>
+<span class="pl-k">from</span> sale_detail_sj a <span class="pl-k">join</span> sale_detail b
+<span class="pl-k">on</span> <span class="pl-c1">a</span>.<span class="pl-c1">total_price</span> <span class="pl-k">&lt;</span> <span class="pl-c1">b</span>.<span class="pl-c1">total_price</span> <span class="pl-k">or</span> <span class="pl-c1">a</span>.<span class="pl-c1">total_price</span> <span class="pl-k">+</span> <span class="pl-c1">b</span>.<span class="pl-c1">total_price</span> <span class="pl-k">&lt;</span> <span class="pl-c1">500</span>;
+
+<span class="pl-c"><span class="pl-c">--</span>返回结果</span>
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>---------+-------------+--------------+</span>
+| shop_name | total_price | total_price2 |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>---------+-------------+--------------+</span>
+| s1        | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>        |
+| s2        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>        |
+| s5        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>        |
+| s2        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>        |
+| s1        | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>        |
+| s2        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>        |
+| s5        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>        |
+| s2        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>        |
+| s1        | <span class="pl-c1">100</span>.<span class="pl-c1">1</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">3</span>        |
+| s2        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">3</span>        |
+| s5        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">3</span>        |
+| s2        | <span class="pl-c1">100</span>.<span class="pl-c1">2</span>       | <span class="pl-c1">100</span>.<span class="pl-c1">3</span>        |
+<span class="pl-k">+</span><span class="pl-c"><span class="pl-c">--</span>---------+-------------+--------------+</span></pre></div></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://SHADOWX-frank.github.io">My Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if("25/11/2024"!=""){
+    var startSite=new Date("25/11/2024");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行"+diffDay+"天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","SHADOWX-frank/SHADOWX-frank.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+
+
+</html>
