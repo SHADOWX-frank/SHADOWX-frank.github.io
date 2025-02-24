@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="## 介绍：
+在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据https://zhuanlan.zhihu.com/p/666452391 这篇文章对大模型推理计算加速过程进行总结
+
+#### 计算瓶颈：
+Attention的计算复杂度为 **O(N^2)** 且该计算 **无法并发**
+1. 大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。">
+<meta property="og:title" content="大模型推理计算加速">
+<meta property="og:description" content="## 介绍：
+在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据https://zhuanlan.zhihu.com/p/666452391 这篇文章对大模型推理计算加速过程进行总结
+
+#### 计算瓶颈：
+Attention的计算复杂度为 **O(N^2)** 且该计算 **无法并发**
+1. 大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>大模型推理计算加速</title>
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">大模型推理计算加速</h1>
+<div class="title-right">
+    <a href="https://SHADOWX-frank.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/SHADOWX-frank/SHADOWX-frank.github.io/issues/7" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h2>介绍：</h2>
+<p>在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据<a href="https://zhuanlan.zhihu.com/p/666452391" rel="nofollow">https://zhuanlan.zhihu.com/p/666452391</a> 这篇文章对大模型推理计算加速过程进行总结</p>
+<h4>计算瓶颈：</h4>
+<p>Attention的计算复杂度为 <strong>O(N^2)</strong> 且该计算 <strong>无法并发</strong></p>
+<ol>
+<li>大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。</li>
+<li>同时在生成阶段，每个token的生成都依赖前面所有的计算，只能一个一个token生成，无法并发计算</li>
+</ol>
+<h4>优化目标</h4>
+<ol>
+<li><strong>更低的延迟</strong>：延迟是指单个请求返回的时间</li>
+<li><strong>更高的吞吐量</strong>：吞吐量是一定时间内处理请求的总量</li>
+</ol>
+<h4>计算加速方式</h4>
+<p>因为计算本质上是CPU/GPU执行一系列的指令，在不改变模型结构的前提下，能进行的优化加速主要有以下三种：</p>
+<ol>
+<li><strong>减少非必要/重复计算</strong>：减少需要执行的指令数量</li>
+<li><strong>充分利用硬件并发</strong>：让单条指令可以一次处理多条数据，或者利用CPU和GPU的多核心机制同时处理多条指令</li>
+<li><strong>加速内存IO速度</strong>：利用缓存局部性加速内存读取指令的执行速度，或者减少不必要的内存读写操作</li>
+</ol>
+<p>前两种为计算侧优化，后一种为内存IO优化</p>
+<h2>计算侧优化</h2>
+<h4>KVCache</h4>
+<p>因为在deocding过程中，每一步都需要计算当前token和之前所有已生成token的attention，因此需要计算所有token的k和v向量，此时前面token的kv值在每一步decoding的时候都被重复计算了。这时候业界一般采用一种空间换时间的方法，将这些kv值存下来，作为两个[seq_len - 1, inner_dim]的向量，在每一轮计算中只需要计算当前token的kv值即可</p>
+<p>KVCache是最简单直接有效的优化方法，因此一般模型的默认实现都会自带KVCache，并不需要额外实现，只需指定use_cache=True即可</p>
+<p>KVCache 配置开启后，推理过程的两个阶段：</p>
+<ol>
+<li>预填充阶段：发生在计算第一个输出token过程时，此时Cache是空的，计算时需要为每个tranformer layer计算并保存key cache和value cache，在输出token时cache完成填充。此时的FLOPs与KV Cache关闭时一致，存在大量的通用矩阵乘法（Gemm操作），推理速度很慢</li>
+<li>使用KV Cache阶段：发生在计算第二个输出token至最后一个token过程中，此时Cache是有值的，每轮推理之需要读取Cache，同时将当前轮计算出的新的key、value追加写入到Cache。此时的FLOPs降低，Gemm操作变为矩阵向量乘法（Gemv操作），推理速度相对第一阶段变快，此时属于memory-bound类型计算。</li>
+</ol>
+<h4>Kernel优化和算子融合</h4>
+<p>对于Nvidia gpu环境而言，我们通过CUDA kernel来执行大部分运算操作，这里的操作包括两种:</p>
+<ol>
+<li>计算受限操作（compute-bound）：大的矩阵乘法，多channel的卷积</li>
+<li>存储受限操作（memory-bound）：</li>
+</ol>
+<ul>
+<li>按位操作：Relu、Dropout</li>
+<li>规约操作：sum、softmax<br>
+因为每次kernel调用存在额外开销，比如内存拷贝、GPU和CPU通信等。因此我们希望可以把整个Attention计算放到同一个kernerl实现。这里Facebook的xformers库就为各种Attention变种提供了高效的CUDA实现。主流的推理库基本也自带了这种高效的Kernel实现</li>
+</ul>
+<p>算子融合是一种常用于深度学习和其他计算密集型任务中的优化技术。其基本操作就是将多个连续的操作或算子合并成一个单一的算子，以减少计算和内存开销。使用算子融合可以提高执行效率，同时减少数据传输和临时存储，通过“少动数据多计算”的方式，更多的利用资源。实际上要做算子融合，还需要考虑具体的硬件架构、编程框架、编译器和具体任务。一些在深度学习中可以考虑融合的算子包括：</p>
+<ol>
+<li>卷积和激活函数：将卷积层和激活函数融合起来，避免额外的内存访问</li>
+</ol>
+<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-s1">output</span> <span class="pl-c1">=</span> <span class="pl-en">relu</span>(<span class="pl-en">conv2d</span>(<span class="pl-s1">input</span>, <span class="pl-s1">weights</span>))</pre></div>
+<ol start="2">
+<li>卷积核批量归一化：卷积后的batch normalization层可以和卷积融合从而减少对内存的访问</li>
+</ol>
+<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-s1">output</span> <span class="pl-c1">=</span> <span class="pl-en">batch_norm</span>(<span class="pl-en">conv2d</span>(<span class="pl-s1">input</span>, <span class="pl-s1">weights</span>))</pre></div>
+<ol start="3">
+<li>全连接层和激活函数：全连接层后的激活函数可以和全连接层融合从而减少对内存的访问</li>
+</ol>
+<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-s1">output</span> <span class="pl-c1">=</span> <span class="pl-en">batch_norm</span>(<span class="pl-en">conv2d</span>(<span class="pl-s1">input</span>, <span class="pl-s1">weights</span>))</pre></div>
+<p>对于算子融合而言，需要考虑的一个关键因素是数值的稳定性。在某些情况下，算子融合可能会导致数值精度的损失。此外，还要考虑硬件和软件的兼容性，因为并非所有的算子组合都能从硬件加速中受益。</p>
+<h4>分布式推理</h4>
+<p>在大模型的训练和推理过程中，有以下几种主流的分布式并行方式：</p>
+<ul>
+<li>数据并行（Data Parallel）：将模型放在多个GPU上，每个GPU都包含完整的模型，将数据集切分为多份，每个GPU负责推理一部分的数据。对于模型推理而言，因为不需要像训练一样聚合推理结果更新参数，所以将模型单独部署在多个GPU上推理即可。数据并行可能因为每个GPU都复制了一份完整模型，而在模型变大时，打爆GPU显存。</li>
+<li>流水线并行（Pipeline Parallel）：将模型纵向拆分，每个GPU只包含模型的一部分层，数据在一个GPU完成运算后，将输出送给下一个GPU继续运算。这种方式一般是单台GPU内存无法放下整个模型的妥协之举，各层之间仍然是在顺序执行，所以并不能加速模型的计算。另外可能出现设备间同步的一些问题，延迟比较大。</li>
+<li>张量并行（Tensor Parallel）：将模型横向拆分，将模型的每一层拆分开，放到不同的GPU上，每一层的计算由多台GPU合作完成。这样张量并行的操作一般使用Nvidia的Megatron库实现，需要更改模型内部结构。该方法通常和别的并行方法同时使用，需要高效的设备间通信。</li>
+</ul>
+<h2>内存IO优化</h2>
+<p>在做GPU计算性能优化时，除了考虑单纯计算的速度，也要考虑内存访问的速度。</p>
+<ol>
+<li>GPU和CPU缓存相同，也存在分级缓存（SRAM和HBM），级数越低的缓存大小越小，访问速度越快，因此我们在优化模型推理时也要考虑内存访问的局部性。</li>
+<li>KVCache随着batch size和seq_len的增加而扩张，在推理过程中会占据超过30%的内存，可能会出现因为内存不够用而限制最大并发度的问题。即：在并发度较高或者输入输出较大时，内存访问反而可能成为计算的瓶颈，而非CPU/GPU的计算量。</li>
+</ol>
+<p>实际的GPU存储可以参考下面的GPU内存硬件分类（根据是否在芯片上可以分为片上内存和片下内存）</p>
+<ul>
+<li>片上内存主要用于缓存以及少量特殊存储单元。特点是速度快，存储空间小。GPU的片上内存都是SRAM（可参考<a href="https://forums.developer.nvidia.com/t/what-is-the-type-of-on-chip-memories-in-nvidia-gpus/203168" rel="nofollow">https://forums.developer.nvidia.com/t/what-is-the-type-of-on-chip-memories-in-nvidia-gpus/203168</a> ）</li>
+<li>片下内存主要用于全局存储，即常说的显存。特点是速度相对慢，存储空间大。HBM是常用的片下GPU存储硬件，它将很多个DDR芯片堆叠在一起后和GPU封装在一起，实现大容量，高位宽的DDR组合阵列。<br>
+不同于CPU 系统内存可扩展的设计，GPU 的整体内存大小是固定的，在选择好显卡型号后就会确定好，包括缓存和全局存储。</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/fe6e3bfe-c3eb-48ef-a6b1-b0b6f740a30b"><img src="https://github.com/user-attachments/assets/fe6e3bfe-c3eb-48ef-a6b1-b0b6f740a30b" width="300" alt="GPU的分级缓存" style="max-width: 100%;"></a>
+</div>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/23c66c79-5108-453d-adf2-e1782623f820"><img src="https://github.com/user-attachments/assets/23c66c79-5108-453d-adf2-e1782623f820" width="300" alt="推理时的显存占用" style="max-width: 100%;"></a>
+</div>
+<h4>Flash Attention</h4>
+<p>Attention计算的步骤：</p>
+<p>$$S = Q K^T \in \mathbb{R^{N \times N}} $$</p>
+<p>$$P = softmax(S) \in \mathbb{R^{N \times N}}$$</p>
+<p>$$O = PV \in \mathbb{R^{N \times d}}$$</p>
+<p>具体而言，这样的attention计算会分为三步：</p>
+<ul>
+<li>起初QKV矩阵均存放在HBM当中，因此第一步需要从HBM中读取QK矩阵，然后将结果S写回HBM</li>
+<li>第二步从HBM中读取S，将P写回HBM</li>
+<li>第三步从HBM中读取P和V，将O写回H BM</li>
+</ul>
+<p>在实际计算当中，QKV都是很大的矩阵，直接进行矩阵计算非常缓存不友好。因此通常考虑将矩阵进行分块乘法的操作，即每次只计算一个小的可以放进SRAM大小的block。Flash attention采用了这种分片(tiling)手段将QKV分割，具体单分片大小参考SRAM size，然后将切割完后的小矩阵都加载到SRAM中进行计算。</p>
+<p>与此同时，从attention计算的公式可以看到，attention计算当中存在大量的HBM读写操作，这个过程是很耗时的。Flash attention的思想则是减少HBM的读写，将整个attention的计算过程在一次读写中完成。但是attention过程中存在softmax这个规约操作，需要计算矩阵中每一行元素的最大值，所以必须要等待所有分块计算完才能进入下一步。那么Flash attention是怎么做的呢？</p>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/b8c9095a-75ac-41f4-9cc3-f5de6084e6c0"><img src="https://github.com/user-attachments/assets/b8c9095a-75ac-41f4-9cc3-f5de6084e6c0" width="300" alt="Flash attention的效果" style="max-width: 100%;"></a>
+</div>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/f1502924-97fa-4ec2-b931-f405e65efa20"><img src="https://github.com/user-attachments/assets/f1502924-97fa-4ec2-b931-f405e65efa20" alt="Image" style="max-width: 100%;"></a></p>
+<ol>
+<li>Flash attention的实现思想<br>
+Flash attention采用了一种类似动态规划的技巧，实现了online softmax，可以在一个循环中计算出一个分块的最终结果。在这个过程中，Flash attention算法需要不断地对中间结果进行重新计算，但是得益于整个过程不需要读HBM，虽然增加了计算量但是整体的速度仍然获得提高（计算上冗余了，但是对HBM的IO访问大幅下降了）。</li>
+<li>Flash attention的具体实现方式</li>
+</ol>
+<ul>
+<li>Tiling (在forward和backward时使用)：该方法的核心思想是将原始的注意力矩阵分解成更小的子矩阵，然后分别对这些子矩阵进行计算，只要这个子矩阵的大小可以在SRAM内存放，那么就可以在计算过程中只访问SRAM了，与此同时，采用了online-softmax的方法，从而避免等待所有分块遍历。</li>
+<li>Recomputation (重算，仅在backward中使用)：原先后向传播通常需要S和P矩阵来计算QKV矩阵梯度，现在不存储中间注意力矩阵S和P，而采用重计算的方式。后向传递时在高速的 SRAM 上快速地通过分块的方式重新计算注意力矩阵 S,P 。</li>
+</ul>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/81a6b57a-6af9-407d-8a39-2510eb3796a5"><img src="https://github.com/user-attachments/assets/81a6b57a-6af9-407d-8a39-2510eb3796a5" alt="Image" style="max-width: 100%;"></a></p>
+<p>（可以观看B站视频<a href="https://www.bilibili.com/video/BV1UT421k7rA/?spm_id_from=333.337.search-card.all.click&amp;vd_source=40b4bab5322c77df2b3a60d699755a2e%EF%BC%89" rel="nofollow">https://www.bilibili.com/video/BV1UT421k7rA/?spm_id_from=333.337.search-card.all.click&amp;vd_source=40b4bab5322c77df2b3a60d699755a2e）</a></p>
+<h4>Flash Decoding</h4>
+<p>Flash attention优化的主要是大矩阵乘法，矩阵越大优化效果越好，但是在在线推理场景时，输入的batch size为1，此时的Q矩阵实际上是一个向量而非矩阵。这意味着如果batch size小于GPU上的SM数量（例如A100上有108个SMs），那么整个计算过程只使用了GPU的一小部分。此时Flash attention无法利用GPU的并发能力，因此研发了Flash decoding方法，以seq_len为维度进行并发，将K和V分成多个部分，并发地与Q相乘进行加速。</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/7b25ded6-e9bd-4c8c-aea8-cb3907284be5"><img src="https://github.com/user-attachments/assets/7b25ded6-e9bd-4c8c-aea8-cb3907284be5" alt="Image" style="max-width: 100%;"></a></p>
+<p>具体而言，Flash decoding方法的流程为：</p>
+<ol>
+<li>将keys和values分成较小的block</li>
+<li>使用FlashAttention并行计算query与每个block的注意力（这是和FlashAttention最大的区别）。对于每个block的每行（每一行是一个特征维度），Flash Decoding会额外记录attention values的log-sum-exp（标量值，用于第3步进行rescale）</li>
+<li>对所有output blocks进行reduction得到最终的output，需要用log-sum-exp值来重新调整每个块的贡献</li>
+</ol>
+<p>因此，不同于Flash attention适合离线训练和批量推理，Flash decoding在单次推理且上下文长度较长时效果更好。可以通过FlashAttention库或者xFormers的attention kernel来使用Flash Decoding</p>
+<h4>Continuous Batching</h4>
+<p>在我们实际进行批量推理时，我们通常使用固定的batch size，将多个请求作为一个batch进行推理，此时我们在设计KVCache时，就会分配两个shape为[batch_size, max_seq_len, inner_dim]的向量，从而确保所有请求在Cache中都放得下。但是这个分配策略会带来两个问题：</p>
+<ol>
+<li>不是所有的请求都可以达到max_seq_len的长度，因此KVCache中很多的内存都被浪费掉了。</li>
+<li>即使一些请求输出长度很短，这些请求也需要等待输出较长的请求输出结束后才能一起返回。</li>
+</ol>
+<p>显然，这种固定的Batching（被称为Static Batching）的策略存在问题。因此，Orca提出了一种持续Batching（Continuous Batching）的策略，这个策略允许输出较短的请求提前结束，并由新请求来占用已结束请求的KVCache空间。</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/45b0a616-7425-47c7-b5d6-93c7b3e15854"><img src="https://github.com/user-attachments/assets/45b0a616-7425-47c7-b5d6-93c7b3e15854" alt="Image" style="max-width: 100%;"></a></p>
+<p>实际情况比上图这个简化的模型要复杂一些：由于预填充阶段需要计算，并且计算模式与后续生成时不同，因此无法轻松地将其与token生成进行批处理。连续批处理框架目前通过超参数来管理这一点：<a href="https://github.com/huggingface/text-generation-inference/blob/f59fb8b630844c2ad2cd80e689202de89d45c37e/launcher/src/main.rs#L124-L135">waiting_served_ratio</a>，即等待预填充的请求与等待序列结束token的请求的比例.</p>
+<p>在批量推理场景中，Continuous Batching可以将模型的吞吐量提升两到三倍。当前主流的推理框架比如Huggingface TGI, Ray serve, vllm, TensorRT-LLM等都支持Continuous Batching策略。</p>
+<h4>Paged Attention</h4>
+<p>vLLM团队分析了推理时的内存浪费问题，认为推理中存在三种内存浪费</p>
+<ul>
+<li>Reservation：由于不确定每个请求的输出长度，需要给每个请求预留max_seq_len的空间</li>
+<li>Internal Fragmentation：在Static Batching策略下，一个请求结束时，其剩余的空间就被浪费掉了</li>
+<li>External Fragmentation：由于KVCache是一个巨大的矩阵，且必须占用连续内存，但是如果只分配大的连续内存，就肯定会有小的内存空间被浪费掉</li>
+</ul>
+<p>vLLM团队认为，Continuous Batching可以部分解决Internal Fragmentation的问题，但是Reservation和External Fragmentation的浪费仍然存在。由此他们提出了Paged Attention，Paged Attention借鉴了操作系统中通过Page管理虚拟内存的思想：将KVCache分割为固定大小的Block，这些Block不需要存储在连续内存中，而是由一个统一的内存分配器管理。计算请求按需申请内存，不需要预先留好max_seq_len大小的内存，解决了reservation的浪费，请求结束后释放掉自己的blocks，解决了internal Fragmentation，而系统只需要分配小的block，解决了External Fragmentation的问题。</p>
+<p>具体来说，不同于传统的注意力算法，Paged Attention允许在非连续的内存空间中存储连续的key和value。Paged Attention将每个序列的KV cache划分为块，每个块包含固定数量token的键和值。在注意力计算期间，Paged Attention内核可以有效地识别和获取这些块。</p>
+<p>因为块在内存中不需要连续，因而可以像操作系统中的虚拟内存一样：</p>
+<ul>
+<li>请求可以视为操作系统中的一个进程</li>
+<li>逻辑内存可理解为操作系统的虚拟内存，每个block类比于虚拟内存中的一个page，每个block的大小是固定的，在vLLM中默认大小为16，即可装16个token的K/V值</li>
+<li>块表可理解为操作系统中的虚拟内存到物理内存的映射表</li>
+<li>物理内存可理解为操作系统中的物理内存，物理块在gpu显存上，每个block类比于虚拟内存中的一个page</li>
+</ul>
+<p>同时，将块视为页面，将token视为字节。请求序列的连续逻辑块通过块表映射到非连续物理块中。物理块在生成新token时按需分配。</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/8746e5af-f968-4ef3-94eb-e946fdab757c"><img src="https://github.com/user-attachments/assets/8746e5af-f968-4ef3-94eb-e946fdab757c" alt="Image" style="max-width: 100%;"></a></p>
+<p>因为这种分配方式，内存浪费只会发生在序列的最后一个块中，在实际实践中，这种方式允许系统将更多序列进行批处理，提高GPU利用率，显著提升吞吐量。</p>
+<p>除此之外，Paged Attention还采取了高效的内存共享机制。在并行采样中，多个输出序列是由同一个prompt生成的，此时prompt的计算和内存是可以在输出序列中共享的。这种内存共享是由其块表格实现的，与进程共享物理页面的方式类似，即通过将它们的逻辑块映射到同一个物理块的方式来共享块。为了确保安全共享，Paged Attention会对物理块的引用计数进行跟踪，并实现写时复制（Copy-on-write）机制。</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/8166e049-f3dc-48d8-b44a-f054fd31ff5a"><img src="https://github.com/user-attachments/assets/8166e049-f3dc-48d8-b44a-f054fd31ff5a" alt="Image" style="max-width: 100%;"></a></p>
+<p>用户可以通过官方的vLLM库使用Paged Attention，英伟达的TensorRT-LLM库和微软的Deepspeed-MII库也对部分模型提供了支持。</p>
+<h4>SplitFuse</h4>
+<p>微软的Deepspeed团队认为：如果我们在F个前向推理中处理P个token，最高效的分配策略是将它们均分，即每个前向推理处理P/F个token。但是在实际的模型推理过程中，我们需要先在prefill阶段一次性处理整个prompt，然后在generation阶段一个个生成token，这样的方式是不符合最优策略的，因此deepspeed提出了SplitFuse：</p>
+<ul>
+<li>将长prompt分割为多个短的输入，分在多个前向推理处理，只有最后一次推理会生成新token</li>
+<li>短的prompt会被合并在一起进行前向推理</li>
+<li>保证每次前向推理的输入token数是固定的</li>
+</ul>
+<h2>总结</h2>
+<p>本篇笔记针对大模型推理加速的方法进行了一个基本的总结，在实际应用中，大多数的推理框架都是混合使用多个加速技术的，例如vllm同时使用了Continuous Batching和Paged Attention技术，而LMDeploy同时支持以上所有的加速技术。</p>
+<p>参考文献&amp;网页</p>
+<ol>
+<li>B站视频 Flash Attention 为什么那么快？原理讲解：<a href="https://www.bilibili.com/video/BV1UT421k7rA/?spm_id_from=333.337.search-card.all.click&amp;vd_source=40b4bab5322c77df2b3a60d699755a2e" rel="nofollow">https://www.bilibili.com/video/BV1UT421k7rA/?spm_id_from=333.337.search-card.all.click&amp;vd_source=40b4bab5322c77df2b3a60d699755a2e</a></li>
+<li>知乎文章 大模型推理性能优化之KV Cache解读：<a href="https://zhuanlan.zhihu.com/p/630832593" rel="nofollow">https://zhuanlan.zhihu.com/p/630832593</a></li>
+<li>Flash attention论文：<a href="https://arxiv.org/pdf/2205.14135" rel="nofollow">https://arxiv.org/pdf/2205.14135</a></li>
+<li>Flash attention解读：<a href="https://courses.cs.washington.edu/courses/cse599m/23sp/notes/flashattn.pdf" rel="nofollow">https://courses.cs.washington.edu/courses/cse599m/23sp/notes/flashattn.pdf</a></li>
+<li>AnyScale博客：<a href="https://www.anyscale.com/blog/continuous-batching-llm-inference" rel="nofollow">https://www.anyscale.com/blog/continuous-batching-llm-inference</a></li>
+</ol></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://SHADOWX-frank.github.io">My Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if("25/11/2024"!=""){
+    var startSite=new Date("25/11/2024");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行"+diffDay+"天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","SHADOWX-frank/SHADOWX-frank.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>
