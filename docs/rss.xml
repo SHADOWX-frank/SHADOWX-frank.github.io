@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Mon, 24 Feb 2025 08:56:00 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>大模型推理计算加速</title><link>https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html</link><description>## 介绍：
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Mon, 24 Feb 2025 08:58:01 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>大模型推理计算加速</title><link>https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html</link><description>## 介绍：
 在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据https://zhuanlan.zhihu.com/p/666452391 这篇文章对大模型推理计算加速过程进行总结
 
 #### 计算瓶颈：
-Attention的计算复杂度为 **$$O(N^2)$$** 且该计算 **无法并发**
+Attention的计算复杂度为 **$O(N^2)$** 且该计算 **无法并发**
 1. 大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html</guid><pubDate>Mon, 24 Feb 2025 08:54:25 +0000</pubDate></item><item><title>ODPS 表的基本操作：查询表(2)</title><link>https://SHADOWX-frank.github.io/post/ODPS%20-biao-de-ji-ben-cao-zuo-%EF%BC%9A-cha-xun-biao-%282%29.html</link><description># 交集（INTERSECT）、并集（UNION）和补集（EXCEPT）&#13;
 ## 交集&#13;
 #### SQL代码格式&#13;

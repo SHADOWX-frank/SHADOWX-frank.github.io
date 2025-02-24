@@ -14,14 +14,14 @@
 在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据https://zhuanlan.zhihu.com/p/666452391 这篇文章对大模型推理计算加速过程进行总结
 
 #### 计算瓶颈：
-Attention的计算复杂度为 **$$O(N^2)$$** 且该计算 **无法并发**
+Attention的计算复杂度为 **$O(N^2)$** 且该计算 **无法并发**
 1. 大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。">
 <meta property="og:title" content="大模型推理计算加速">
 <meta property="og:description" content="## 介绍：
 在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据https://zhuanlan.zhihu.com/p/666452391 这篇文章对大模型推理计算加速过程进行总结
 
 #### 计算瓶颈：
-Attention的计算复杂度为 **$$O(N^2)$$** 且该计算 **无法并发**
+Attention的计算复杂度为 **$O(N^2)$** 且该计算 **无法并发**
 1. 大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html">
@@ -96,7 +96,7 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <div class="markdown-body" id="postBody"><h2>介绍：</h2>
 <p>在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据<a href="https://zhuanlan.zhihu.com/p/666452391" rel="nofollow">https://zhuanlan.zhihu.com/p/666452391</a> 这篇文章对大模型推理计算加速过程进行总结</p>
 <h4>计算瓶颈：</h4>
-<p>Attention的计算复杂度为 <strong>$$O(N^2)$$</strong> 且该计算 <strong>无法并发</strong></p>
+<p>Attention的计算复杂度为 <strong>$O(N^2)$</strong> 且该计算 <strong>无法并发</strong></p>
 <ol>
 <li>大模型需要处理很长的输入输出，在decoder-only的架构中，当前token需要和前面所有的token进行attention计算，随着seq_len和n的增加，模型计算的矩阵尺寸会越来越大。</li>
 <li>同时在生成阶段，每个token的生成都依赖前面所有的计算，只能一个一个token生成，无法并发计算</li>
