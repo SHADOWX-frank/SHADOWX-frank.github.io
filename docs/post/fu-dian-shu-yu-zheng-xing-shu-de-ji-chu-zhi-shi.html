@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="## 浮点数
+
+#### FP32（Single Precision）
+
+FP32是最常见的浮点数格式，遵循IEEE 754标准，使用32位来表示一个数字，包括1位符号位、8位指数位和23位小数位。">
+<meta property="og:title" content="浮点数与整型数的基础知识">
+<meta property="og:description" content="## 浮点数
+
+#### FP32（Single Precision）
+
+FP32是最常见的浮点数格式，遵循IEEE 754标准，使用32位来表示一个数字，包括1位符号位、8位指数位和23位小数位。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://SHADOWX-frank.github.io/post/fu-dian-shu-yu-zheng-xing-shu-de-ji-chu-zhi-shi.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>浮点数与整型数的基础知识</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">浮点数与整型数的基础知识</h1>
+<div class="title-right">
+    <a href="https://SHADOWX-frank.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/SHADOWX-frank/SHADOWX-frank.github.io/issues/8" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h2>浮点数</h2>
+<h4>FP32（Single Precision）</h4>
+<p>FP32是最常见的浮点数格式，遵循IEEE 754标准，使用32位来表示一个数字，包括1位符号位、8位指数位和23位小数位。FP32提供了高精度的表示，适用于对精度要求极高的模型训练过程，但是FP32的数据和计算需要更多的内存和计算资源。</p>
+<ul>
+<li>
+<p>Sign（符号位）：1位，0表示整数；1表示负数</p>
+</li>
+<li>
+<p>Exponent（指数位）：8位，用来表示整数部分，范围为00000001（1）到11111110（254）。为了让指数位能表示负数，引入偏置值127后，指数位可以表示-126到+127的范围即 $2^{-126}$ 到 $2^{127}$ .</p>
+</li>
+<li>
+<p>Fraction（尾数位）：23位，用来表示小数部分，存储的尾数位数为23位，但是隐去了首位的1。可以根据下面一个公式进行数值计算。</p>
+</li>
+</ul>
+<p>$$(-1)^{sign} * 2^{exponent -127} * 1.fraction(2进制)$$</p>
+<p><strong>补充</strong>：IEEE 754标准的特殊情况</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>IEEE 754的特殊情况</th>
+<th>符号位</th>
+<th>指数位</th>
+<th>尾数位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正零</td>
+<td>0</td>
+<td>全0</td>
+<td>全0</td>
+</tr>
+<tr>
+<td>负零</td>
+<td>1</td>
+<td>全0</td>
+<td>全0</td>
+</tr>
+<tr>
+<td>+inf</td>
+<td>0</td>
+<td>全1</td>
+<td>全0</td>
+</tr>
+<tr>
+<td>-inf</td>
+<td>1</td>
+<td>全1</td>
+<td>全0</td>
+</tr>
+<tr>
+<td>NaN</td>
+<td>0/1</td>
+<td>全1</td>
+<td>非0</td>
+</tr>
+<tr>
+<td>非规格数</td>
+<td>0/1</td>
+<td>全0</td>
+<td>非0</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p>注意：对FP32来说，十进制中相隔0.000001（-1～1之间精度是0.0000001），在float32中才会有变化</p>
+<h4>FP16（Half Precision）</h4>
+<p>FP16同样遵循IEEE 754标准，但是仅使用16位来表示一个数，包括1位符号位、5位指数位和10位小数位。相比较FP32，FP16减半了存储需求和计算带宽，非常适合于深度学习的训练和推理，特别是在对内存和计算速度有严格要求的场景。虽然精度相对较低，但是在很多深度学习任务中，这种精度损失是可以接受的，同时也可以通过混合精度训练等技术进行缓解。具体而言，FP16的组成为</p>
+<ul>
+<li>
+<p>Sign（符号位）：1位，0表示整数；1表示负数</p>
+</li>
+<li>
+<p>Exponent（指数位）：5位，用来表示整数部分，范围为00001（1）到11110（30）。为了让指数位能表示负数，引入偏置值15后，指数位可以表示-14到+15的范围即 $2^{-14}$ 到 $2^{15}$ .</p>
+</li>
+<li>
+<p>Fraction（尾数位）：10位，用来表示小数部分，存储的尾数位数为10位，但是隐去了首位的1，假设尾数部分为1001000000，默认会在这个尾数部分前面加一个1，变成1.1001000000（二进制表示），可以根据下面的两个公式计算得出为1.5625。</p>
+</li>
+</ul>
+<p>$$(-1)^{sign} * 2^{exponent -15} * 1.fraction(2进制)$$</p>
+<p>$$(-1)^{sign} * 2^{exponent -15} * (1 + \frac{fraction(10进制)}{1024})$$</p>
+<p>注意：对FP16来说，十进制中相隔0.001（-1～1之间精度是0.0001），在float16中才会有变化</p>
+<h4>BF16（Brain Floating Point 16 or Bfloat16）</h4>
+<p>BF16是Google Brain为加速机器学习而设计的费标准浮点数格式，也使用16位来表示一个数字，但是不同于FP16，它拥有1位符号位、8位指数位和7位小数位，与FP32相同的指数范围。这样的设计使得BF16在保持与FP32相似的数值范围的同时，牺牲了一些精度以换取更高的计算效率。BF16在减少内存和计算成本的同时，还能较好地保持模型的训练稳定性和准确性。</p>
+<ul>
+<li>
+<p>Sign（符号位）：1位，0表示整数；1表示负数</p>
+</li>
+<li>
+<p>Exponent（指数位）：8位，用来表示整数部分，同FP32一样，范围为00000001（1）到11111110（254）。为了让指数位能表示负数，引入偏置值127后，指数位可以表示-126到+127的范围即 $2^{-126}$ 到 $2^{127}$ .</p>
+</li>
+<li>
+<p>Fraction（尾数位）：7位，用来表示小数部分，存储的尾数位数为7位，也隐去了首位的1。可以根据下面一个公式进行数值计算。</p>
+</li>
+</ul>
+<p>$$(-1)^{sign} * 2^{exponent -127} * 1.fraction(2进制)$$</p>
+<p>注意：对BF16来说，十进制中相隔0.01（-1～1之间精度是0.001），在bfloat16中才会有变化。可以看到bfloat16比float16精度降低了，但是表示的范围更大了，可以有效的防止在训练过程中的溢出。</p>
+<h4>FP8</h4>
+<p>FP8是FP16的衍生物，包含两种编码格式：</p>
+<ul>
+<li>
+<p>E4M3：包含1位符号位、4位指数和3位底数</p>
+</li>
+<li>
+<p>E5M2：包含1位符号位、5位指数和2位底数</p>
+</li>
+</ul>
+<p>相对而言，E4M3的表示范围更小，但是精度略高于E5M2。另外，E5M2遵循IEEE 754标准，但是E4M3不遵循IEEE 754标准。E4M3在指数全为1时仍然可以表示有效数字，当且仅当指数与尾数部分都为1时，表示无穷大。</p>
+<p><strong>补充1：</strong> 当一个浮点数的指数部分全为0，且底数部分不为0时，表示的是非规格化浮点数，此时其底数部分不再额外加1.例如0 0000 001表示 $2^{0-7}*2^{-2}$</p>
+<p><strong>补充2：</strong> FP8 E4M3的特殊情况</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th></th>
+<th>符号位</th>
+<th>指数位</th>
+<th>尾数位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正零</td>
+<td>0</td>
+<td>全0</td>
+<td>全0</td>
+</tr>
+<tr>
+<td>负零</td>
+<td>1</td>
+<td>全0</td>
+<td>全0</td>
+</tr>
+<tr>
+<td>inf 不存在该值的表示</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>NaN</td>
+<td>0/1</td>
+<td>全1</td>
+<td>全1</td>
+</tr>
+<tr>
+<td>非规格数</td>
+<td>0/1</td>
+<td>全0</td>
+<td>非0</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h4>FP32到FP8的数据格式转换</h4>
+<p>FP32到FP8的转换过程可以表示为先除以尺度因子得到中间结果Unscaled FP32，再由中间结果完成FP32到FP8的格式转换。对于FP8 E4M3的数据格式转换过程可以刻画为：</p>
+<ol>
+<li>
+<p>Unscaled FP32 = FP32 / scale</p>
+</li>
+<li>
+<p>FP8 = Convert(Unscaled FP32)</p>
+<ol>
+<li>
+<p>当Unscaled FP32 数据已经超出FP8的表示范围，即Unscaled FP32的幅值大于448（FP8 E4M3可表示的最大值），那么直接进行截断，此时为浮点上溢出</p>
+</li>
+<li>
+<p>当Unscaled FP32数据范围在FP8的表示范围内，且幅值大于FP8能够表达的最小值，此时需要移去多余的底数位，并对底数进行四舍五入</p>
+</li>
+<li>
+<p>当Unscaled FP32数据小于规范化FP8能够表达的最小值，此时浮点下溢出，需要除以非规格化的FP8最小值并取整。</p>
+</li>
+</ol>
+</li>
+</ol>
+<p>补充：</p>
+<ul>
+<li>
+<p>FP8量化经研究具有一个优势，FP8的量化对scale的选择不敏感，在FP8的场景下，几乎可以不做校准（calibration）就完成网络的量化</p>
+</li>
+<li>
+<p>总的来说，FP8的量化并不精确，但是FP8量化具有良好的宽容度，因此在量化感知训练中可能会有更好的稳定性</p>
+</li>
+</ul>
+<h4>FP8 与 INT8 综合对比</h4>
+<ul>
+<li>
+<p>INT8在数值空间是均匀分布的，将浮点数空间的数值按照等分区间映射到一个整数上，这样很多浮点数数值都会映射到相同的整数数值，从而损失边界特征值。而FP8仍然是浮点数，有更大的动态范围表示和更高的精度表示。</p>
+</li>
+<li>
+<p>在混合精度训练时，FP8到FP16/FP32/BF16的转换时，更简单直接，而INT8到FP的转换需要乘法和加法运算增加额外开销。</p>
+</li>
+<li>
+<p>在CPU上，FP8的速度会比INT8慢很多。</p>
+</li>
+<li>
+<p>INT的量化步长（scale）是均匀的，总是以一定的步长完成量化，而浮点的量化则是非均匀的，随着数值增大，其步长也在逐渐变大。而且E5M2的步长变化相较E4M3而言更加明显。从另一个角度出发，量化的误差是与步长正相关的，因此FP8浮点量化相比于INT8而言，对于小数会更加精确，但是对于大数则更不精确。</p>
+</li>
+</ul>
+<h2>整型数</h2>
+<h4>INT8</h4>
+<p>INT8是一种8位整数类型，其表示范围为-128到127，可将其类比为一个8位计数器，通过每一位不同的0/1组合来表示不同的整数值。</p>
+<h4>INT4</h4>
+<p>INT4是一种4位整数类型，其表示范围较INT8更小，为-8到7，INT4以牺牲数值表示范围为代价，换取更小的存储空间占用和更快的计算速度。</p>
+<h4>FP32到INT8的数据格式转换</h4>
+<ul>
+<li>
+<p>简单的将FP32的数值映射到等间距的INT8整数上的计算过程可以分为三步：</p>
+<ul>
+<li>
+<p>计算缩放因子：根据该组浮点数的最大绝对值计算缩放因子（利用最大绝对值计算缩放因子的方法相对简单，但可能对异常值敏感，选择合适的缩放因子计算方法，需要在精度和计算开销之间进行权衡）</p>
+</li>
+<li>
+<p>量化操作：将FP32的浮点值乘以缩放因子并四舍五入到最接近的整数，得到INT8量化值</p>
+</li>
+<li>
+<p>反量化操作：量化后的INT8值通过除以缩放因子来还原为FP32值，但会存在一定的精度损失</p>
+</li>
+</ul>
+</li>
+<li>
+<p>为了进一步缩小量化误差，还可以引入零点（zero-point）量化。零点量化在量化公式中加入零点偏移，是的浮点数0精确映射到整数0，从而提高量化精度，尤其是在激活值中存在大量0值时。</p>
+</li>
+</ul>
+<h4>参考文献&amp;网页</h4>
+<p>博客：BF16、FP16、FP32 的区别和精度排行 <a href="https://my.oschina.net/shoumenchougou/blog/11208941" rel="nofollow">https://my.oschina.net/shoumenchougou/blog/11208941</a></p>
+<p>博客：大模型精度（FP16，FP32，BF16）详解与实践 <a href="https://www.53ai.com/news/qianyanjishu/2024052494875.html" rel="nofollow">https://www.53ai.com/news/qianyanjishu/2024052494875.html</a></p>
+<p>知乎：FP8 量化-原理、实现与误差分析 <a href="https://zhuanlan.zhihu.com/p/574825662" rel="nofollow">https://zhuanlan.zhihu.com/p/574825662</a></p>
+<p>博客：使用FP8进行大模型量化原理及实践 <a href="https://www.53ai.com/news/finetuning/2024090250423.html" rel="nofollow">https://www.53ai.com/news/finetuning/2024090250423.html</a></p>
+<p>博客：模型量化是什么：FP32, FP16, INT8, INT4 数据类型详解 <a href="https://www.aisharenet.com/moxinglianghuashishencheng/" rel="nofollow">https://www.aisharenet.com/moxinglianghuashishencheng/</a></p></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://SHADOWX-frank.github.io">My Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if("25/11/2024"!=""){
+    var startSite=new Date("25/11/2024");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行"+diffDay+"天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","SHADOWX-frank/SHADOWX-frank.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>

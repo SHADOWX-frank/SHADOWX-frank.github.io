@@ -1,5 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Mon, 24 Feb 2025 08:58:01 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>大模型推理计算加速</title><link>https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html</link><description>## 介绍：
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>My Blog</title><link>https://SHADOWX-frank.github.io</link><description>这是我的个人博客，记录我所学到的相关技术</description><copyright>My Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://SHADOWX-frank.github.io</link></image><lastBuildDate>Wed, 05 Mar 2025 03:21:51 +0000</lastBuildDate><managingEditor>My Blog</managingEditor><ttl>60</ttl><webMaster>My Blog</webMaster><item><title>浮点数与整型数的基础知识</title><link>https://SHADOWX-frank.github.io/post/fu-dian-shu-yu-zheng-xing-shu-de-ji-chu-zhi-shi.html</link><description>## 浮点数
+
+#### FP32（Single Precision）
+
+FP32是最常见的浮点数格式，遵循IEEE 754标准，使用32位来表示一个数字，包括1位符号位、8位指数位和23位小数位。</description><guid isPermaLink="true">https://SHADOWX-frank.github.io/post/fu-dian-shu-yu-zheng-xing-shu-de-ji-chu-zhi-shi.html</guid><pubDate>Wed, 05 Mar 2025 03:09:19 +0000</pubDate></item><item><title>大模型推理计算加速</title><link>https://SHADOWX-frank.github.io/post/da-mo-xing-tui-li-ji-suan-jia-su.html</link><description>## 介绍：
 在大模型计算工程中，Attention计算占据了模型推理阶段的绝大部分资源，本文依据https://zhuanlan.zhihu.com/p/666452391 这篇文章对大模型推理计算加速过程进行总结
 
 #### 计算瓶颈：
