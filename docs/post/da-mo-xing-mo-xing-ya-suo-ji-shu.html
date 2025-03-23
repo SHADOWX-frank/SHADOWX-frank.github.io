@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="
+提高大模型计算速度除了使用推理加速的技术，让模型“算得更快”，还可以使用模型压缩的技术，让模型“算得更少”。">
+<meta property="og:title" content="大模型模型压缩技术">
+<meta property="og:description" content="
+提高大模型计算速度除了使用推理加速的技术，让模型“算得更快”，还可以使用模型压缩的技术，让模型“算得更少”。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://SHADOWX-frank.github.io/post/da-mo-xing-mo-xing-ya-suo-ji-shu.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>大模型模型压缩技术</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">大模型模型压缩技术</h1>
+<div class="title-right">
+    <a href="https://SHADOWX-frank.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/SHADOWX-frank/SHADOWX-frank.github.io/issues/9" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><p>提高大模型计算速度除了使用推理加速的技术，让模型“算得更快”，还可以使用模型压缩的技术，让模型“算得更少”。本文参照<a href="https://zhuanlan.zhihu.com/p/667455383" rel="nofollow">https://zhuanlan.zhihu.com/p/667455383</a>这篇博客分享的内容对模型压缩技术进行一个初步的介绍。</p>
+<h2>模型压缩技术分类</h2>
+<ul>
+<li>
+<p>量化（Quantization）：使用低精度（ $\leq$ 16位）存储模型权重</p>
+</li>
+<li>
+<p>精简Attention：使用一些变种的Attention算法来减少模型计算量</p>
+</li>
+<li>
+<p>投机采样：使用小模型辅助大模型进行推理</p>
+</li>
+</ul>
+<h2>模型推理阶段的显存分配</h2>
+<p>在推理阶段主要有三部分数据会放到显存里</p>
+<ul>
+<li>
+<p><strong>KV Cache</strong>：前序token序列计算的 $k,v$ 结果，会随着后面token推理过程逐步存到显存里。存储的量随着batch和sequence length长度动态变化</p>
+</li>
+<li>
+<p><strong>模型参数</strong>：包括Transformer、Embedding等模型参数会存到显存里。模型大小固定后，这个存储空间是固定的。</p>
+<ul>
+<li>包括FFN、Norm层、dropout、embeding参数等</li>
+</ul>
+</li>
+<li>
+<p><strong>运行时中间数据</strong>：推理过程中产生出的一些中间数据会临时存到显存，即用即释放，一般占用空间比较小。</p>
+<ul>
+<li>
+<p>包括在单token推理前向计算时，通过每层产出的计算结果。</p>
+</li>
+<li>
+<p>输入的batch数据也要存到GPU显存上</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2>一个KV Cache的计算过程</h2>
+<p>以Qwen-72B为例，忽略模型GQA的设置，以朴素的MHA方式计算。</p>
+<div align="center">
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>模型参数名</th>
+<th>模型层数</th>
+<th>注意力头数</th>
+<th>注意力头向量维度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>大小</td>
+<td>80层</td>
+<td>每层64个头</td>
+<td>每个头128维</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+</div>
+针对单个token，缓存的 $k,v$ 数据总量为：
+<p>$$num_{kv} = 2 * l * n_h = 2 \times80 \times64 = 10240$$</p>
+<p>其中，2表示1个 $k$ 和1个 $v$ 。也就是说一个token就需要缓存10240个 $k,v$ 。这些 $k,v$ 如果按照FP32进行计算存储，每个参数占4个字节，那么一个token的参数占用为：</p>
+<p>$$token\_mem_{kv} = 2 * num_{kv} * d_{h} = 4 \times 10240 \times 128= 5.24(MB)$$</p>
+<p>这些 $k,v$ 如果按照更广泛使用的半精度（bf16）参数进行计算存储，每个参数占2个字节，那么一个token的参数占用为：</p>
+<p>$$token\_mem_{kv} = 2 * num_{kv} * d_{h} = 2 \times 10240 \times 128= 2.62(MB)$$</p>
+<p>这样也就确定了一个token计算需要的缓存的 $k,v$ 数量和存储量。那么对于一个实际的推理场景，还要考虑批量batch（B）和序列长度sequence length（S）两个维度。以下面的单条文本推理和并发推理场景为例：</p>
+<h4>单条短文本场景</h4>
+<div align="center">
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>参数设置</th>
+<th>参数精度</th>
+<th>batch大小</th>
+<th>序列长度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>参数大小</td>
+<td>bf16</td>
+<td>1</td>
+<td>2048</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+</div>
+<p>此时KV Cache的大小计算：</p>
+<p>$$mem_{kv} =token\_mem_{kv} * B * S = 2.62(MB) \times 1 \times 2048 = 5.366GB$$</p>
+<h4>并发长文本场景</h4>
+<div align="center">
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>参数设置</th>
+<th>参数精度</th>
+<th>batch大小</th>
+<th>序列长度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>参数大小</td>
+<td>bf16</td>
+<td>32</td>
+<td>4096</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+</div>
+<p>此时KV Cache的大小计算：</p>
+<p>$$mem_{kv} = token\_mem_{kv} * B * S =  2.62(MB) \times 32 \times 4096 = 343.4GB$$</p>
+<p>除了KV Cache需要占用显存之外，模型参数也需要占用存储，推理阶段模型参数占用的存储空间是固定的。假设模型参数量为 $\Phi$ ，以bf16半精度做推理，则参数量约为 $2\Phi$ （字节）。以qwen-72B为例，参数占用存储空间约为：</p>
+<p>$$mem_p = 2 * \Phi  = 2 \times 72 = 144G$$</p>
+<p>重新审视上述两个场景的现存分配：</p>
+<ul>
+<li>
+<p>对于场景1：模型存储 $mem_p = 144G$ ，KV Cache存储 $mem_{kv} = 5.366GB$ ，模型的参数存储占主导，使用80G的A100，至少需要2张卡做推理。</p>
+</li>
+<li>
+<p>对于场景2：模型存储 $mem_p = 144G$ ，KV Cache存储 $mem_{kv} = 343.4GB$ ，KV Cache存储占主导，使用80G的A100，至少需要7张卡做推理。</p>
+</li>
+</ul>
+<p>补充：在实际推理过程中，如何选择batch大小是根据实际测试而来的，尽可能在单卡装下完整模型参数和KV Cache，这时候卡内带宽很高，性能更出众。</p>
+<h2>减少KV Cache的优化方法</h2>
+<ul>
+<li>
+<p><strong>量化压缩</strong>：通过量化的方法，使用更低的bit存储KV，使得KV结果进一步压缩。</p>
+</li>
+<li>
+<p><strong>共享KV</strong>：通过共享Attention参数的方式，让多个注意力头共享一个KV，从而压缩KV的存储。</p>
+</li>
+<li>
+<p><strong>窗口KV</strong>：通过设计一个计算KV的窗口，KV Cache只保存窗口内的结果，超出窗口的KV会被丢弃，通过这个方法能减少KV的存储，但是会带来一定的长文推理效果损失。</p>
+</li>
+</ul>
+<h2>量化(Quantization)</h2>
+<p>量化(Quantization)是指使用精度更低的单位来表示模型的权重或中间层变量，以节省空间和加速模型推理速度的方法。</p>
+<ul>
+<li>
+<p>根据量化的时机，量化可以分为：</p>
+<ul>
+<li>
+<p>训练时量化（Quantization-Aware Training, QAT）：需要模型重新训练，例如QLora方法</p>
+</li>
+<li>
+<p>训练后量化（Post Training Quantization, PTQ）：可以量化预训练好的模型，不需要重新训练模型，例如AWQ方法、GPTQ方法</p>
+</li>
+</ul>
+</li>
+<li>
+<p>根据量化后的数据类型分类，量化可以分为：</p>
+<ul>
+<li>
+<p>浮点数量化（Float Quantization）：直接用低精度的浮点数单位表示原来的浮点数值，技术相对简单，目前很多模型加载默认会使用FP16了</p>
+</li>
+<li>
+<p>整数量化（Integer Quantization）：整数量化是将原来的浮点数值放缩后使用整数近似表示，把矩阵的浮点数范围映射到整数的范围。</p>
+</li>
+</ul>
+</li>
+<li>
+<p>根据量化的范围上，量化可以分为：</p>
+<ul>
+<li>
+<p>只量化权重（Weight Only）：只量化模型权重，推理时是INT乘Float</p>
+</li>
+<li>
+<p>权重与激活同时量化（Weight and Activation）：这里的激活实际就是每一层的输入，对于矩阵乘法的Y=WX，同时量化W和X，推理时是INT乘INT</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>目前Weight and Activation的Weight 8bit Activition 8bit（W8A8）与FP16水平相当，而Weight Only的Weight 4bit Activition 16bit（W4A16）也与FP16相差无几了。</p>
+<ul>
+<li>
+<p>根据量化的粒度，量化可以分为：</p>
+<ul>
+<li>
+<p>Tensor粒度（per-tensor）：整个矩阵一起量化</p>
+</li>
+<li>
+<p>Token粒度（per-token）和Channe粒度（per-channel）：每行/每列单独量化，X的每一行代表一个Token，W的每一列代表一个Channel</p>
+</li>
+<li>
+<p> Group粒度（per-group）：上述两种方法的折衷，多行/多列分为一组，每组分别量化</p>
+</li>
+</ul>
+</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/ee15b9cd-c0ce-4953-bcef-79da98620745"><img src="https://github.com/user-attachments/assets/ee15b9cd-c0ce-4953-bcef-79da98620745" width="300" alt="量化的粒度" style="max-width: 100%;"></a>
+</div>
+<h4>LLM.int8()</h4>
+<ul>
+<li>原始简单的RTN（Round To Nearest）方法：</li>
+</ul>
+<p>在进行整数量化时，先将原始 $float$ 矩阵 $W$ 除以整数 $INT-N$ 能表示的最大值得到缩放因子 $S$ ，进行缩放，得到量化后的 $int$ 矩阵 $W_{int}$ 。在推理时，首先使用 $W_{int}$ 进行推理，然后再根据 $S$ 放缩回 $float$ 结果。这种方式很简单直接，推理精度下降也相对比较明显。</p>
+<ul>
+<li>
+<p>LLM.int8()方法的特点：LLM.int8()并不会加速模型推理，反而会让推理变慢，其主要用途是节省空间。</p>
+</li>
+<li>
+<p>LLM.int8()的核心思想：在模型中，有些特征是很重要的，用FP16单独计算，剩下的量化成INT8计算</p>
+</li>
+</ul>
+<p>根据LLM.int8()的分析：</p>
+<ul>
+<li>
+<p>在 $&amp;lt;$ 3B的模型上，RTN算法效果还可以，但是 $&amp;gt;$ 6B的模型上，RTN算法效果就会变差</p>
+</li>
+<li>
+<p>模型的中间层结果，即Activation，</p>
+</li>
+<li>
+<p>6.7B规模以上的模型中包括大量的离群值特征，一个离群值可能降低所有其他值的量化精度。因此，希望每个张量有多个缩放常数，以便将离群值的影响限制在每个块内。</p>
+</li>
+<li>
+<p>因此，LLM.int8()开发了混合精度分解，其中大量离群值特征维度的小部分（约0.1%）以16位精度表示，而其他99.9%的值以8位表示，从而降低了内存消耗。</p>
+</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/e7cf2354-51e0-45d4-bafb-c110abf1d878"><img src="https://github.com/user-attachments/assets/e7cf2354-51e0-45d4-bafb-c110abf1d878" width="700" alt="LLM.int8()量化过程" style="max-width: 100%;"></a>
+</div>
+<p>具体而言，就是通过离群（outlier）检测，把输入 $X$ 中包含异常值的列挑出来直接做16位的矩阵乘法，剩下的使用int8乘法，最后把它们累加起来。</p>
+<h4>GPTQ</h4>
+<p>GPTQ方法是对原始的OBQ（Optimal Brain Quantization）方法的改进。</p>
+<p>OBQ方法是最早源于LeCun的OBD算法（Optimal Brain Damage），到后来的OBS（Optimal Brain Surgeon），再到2022年的OBC（Optiaml Brain Compression）方法一路流传下来的模型压缩方法。</p>
+<ul>
+<li>
+<p> OBD：这是一种经典的模型剪枝方法，其假设不同参数对目标函数的影响是独立的，以此简化目标函数的泰勒展开，并使用Hessian矩阵计算参数的“贡献度”来进行神经网络剪枝。</p>
+</li>
+<li>
+<p>OBS：该方法在ODB的基础上去除了独立性假设，在抹去一个权重 $w_q$ 时同时计算出一个补偿 $\delta_{F}$ 应用于剩余的权重上，从而使得抹去权重 $w_q$ 增加的误差被抵消。具体而言就是通过计算Hessian矩阵的逆得到每个参数的重要性排序，这样就确定了参数剪枝的次序，同时每次剪枝的时候，其他的参数也进行一次更新从而减少误差。</p>
+</li>
+<li>
+<p>OBQ：该方法将OBS的剪枝思想推广到了模型量化中，可以将剪枝看作一种特殊的量化，常用的量化是把数值近似到一个接近的值，而剪枝实际上可以看做直接把数值近似成0。这个方法本身不错，但是其效率比较低。</p>
+</li>
+</ul>
+<p>具体而言，OBQ方法通过在量化过程中保留对损失函数影响最小的权重，来补偿因量化引起的精度损失。该方法将压缩问题转化为了“在一已知要把 $w_{ij}$ 变为 $Quant(w_{ij})$ 的前提下，如何变化 $W_i$ 的其他值使loss的变化最小”。此时，整个量化过程如下：</p>
+<ul>
+<li>对 $W$ 的每一行分别量化，在量化第 $q$ 行 $w_q$ 时，根据下面这个公式照出对loss影响最小的列，然后更新 $w_q$ ，其中 $\bf H$ 时loss关于 $W$ 的Hessian矩阵</li>
+</ul>
+<p>$$w_q = \mathrm{argmin}_{w_{q}} \frac{(quant(w_q)-w_q)^2}{[\mathbf{H}^{-1}]_{qq}}$$</p>
+<ul>
+<li>对 $w_q$ 剩下的参数进行更新以补偿量化误差</li>
+</ul>
+<p>$$\delta_F = - \frac{w_q-quant(w_q)}{[\mathbf{H}^{-1}]_{qq}} · [\mathbf{H}^{-1}]_{:,q}$$</p>
+<ul>
+<li>通过下面这个公式，将 $\bf H^{-1}$ 剔除</li>
+</ul>
+<p>$$\mathbf{H}^{-1} = (\mathbf{H}^{-1} - \frac{1}{[ \mathbf{H}^{-1}]_{qq}} \mathbf{H}^{-1}_{:,q} H^{-1}_{q,:})$$</p>
+<p>重复这三个步骤直到全部矩阵都被量化。其中最后一步更新 $\textbf{H}$ 涉及到矩阵乘法，复杂度较高（为 $O(d_{row}*d^3_{col})$ ），所以这个算法对大模型来说很难实现。</p>
+<p>为了提高量化效率，GPTQ被提出来了。</p>
+<ul>
+<li>
+<p>GPTQ方法的特点：在OBQ的基础上进行改进，在降低量化算法复杂度的同时保留了模型的精度，常用于大模型的高效量化。</p>
+</li>
+<li>
+<p>GPTQ的核心思想：通过最小化量化引入的输出误差，实现高精度低bit量化。具体而言，GPTQ在后量化过程中，针对每一层权重矩阵，利用一小部分校准数据，最小化量化前后模型输出的差异。</p>
+</li>
+<li>
+<p>具体而言，GPTQ在OBQ的基础上做了如下改进：</p>
+<ul>
+<li>
+<p><strong>取消贪心算法，选择固定顺序</strong>：OBQ采用了贪心策略，先量化对目标影响最小的参数，这就要对每行进行单独计算，因为每行里各元素的量化顺序不一样。但是GPTQ认为，量化的顺序并不重要，对精度影响不大，因此对每一行都使用相同的顺序去量化。这项改进是的参数矩阵每一行的量化可以做并行的矩阵计算（per-channel quantization）。这个改进让量化的复杂度优化到了 $O(max(d_{row}*d^2_{col},d^3_{col}))$ ，大大提升了计算效率。</p>
+</li>
+<li>
+<p><strong>懒惰批量更新</strong>：OBQ中对权重的更新是一个个单独进行的，需要很多内存但不怎么需要算力，这导致性能瓶颈在了GPU的内存带宽，但实际上同一个特征矩阵 $W$ 不同列间的权重更新是不会互相影响的。因此GPTQ采用类似于缓存的策略（延迟批处理），把矩阵分块缓存，在更新一列后只存在缓存中，整个block更新完再写会内存并更新整个 $\mathbf{H}$ 。这种方法缓解了带宽的压力，大幅提升了计算速度。</p>
+</li>
+<li>
+<p><strong>Cholesky分解</strong>：OBQ方法受浮点数运算影响较大，在 $H^{-1}$ 的计算时容易引入数值误差。因此GPTQ提出了两种方法，一是往 $H^{-1}$ 里加入一个小的常数项。另一个是观察到其实只需要用到 $\mathbf{H}$ 矩阵上三角形的信息，所以可以用数值稳定的Cholesky分解提前计算好所有需要的信息，避免在更新的过程中再计算。</p>
+</li>
+</ul>
+</li>
+<li>
+<p>以伪代码的形式呈现算法可以看做：</p>
+</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/082eac21-5c17-406d-aa25-1ac4f7917f71"><img src="https://github.com/user-attachments/assets/082eac21-5c17-406d-aa25-1ac4f7917f71" width="500" alt="GPTQ的算法伪代码" style="max-width: 100%;"></a>
+</div>
+<ol>
+<li>
+<p>初始化量化结果 $\textbf{Q}$ 为一个零矩阵，初始化误差矩阵 $\textbf{E}$ 为一个零矩阵</p>
+</li>
+<li>
+<p>对 $\textbf{H}^{-1}$ 进行Cholesky分解，得到 $\textbf{H}^{-1}$ 的逆矩阵信息</p>
+</li>
+<li>
+<p>迭代处理权重列的量化</p>
+</li>
+<li>
+<p>对每个列进行量化，更新Q矩阵中的对应列</p>
+</li>
+<li>
+<p>计算量化误差，更新误差矩阵 $\textbf{E}$</p>
+</li>
+<li>
+<p>更新权重矩阵 $\textbf{W}$ 中的权重，以减少误差</p>
+</li>
+<li>
+<p>重复上述步骤，直到所有的权重列都被量化</p>
+</li>
+<li>
+<p>最终，返回量化后的权重矩阵 $\textbf{Q}$</p>
+</li>
+</ol>
+<p>总体而言，GPTQ有以下两个优点：</p>
+<ul>
+<li>
+<p>INT4量化能够节省接近4倍的内存，这是因为反量化操作发生在算子的计算单元附近，而不是在GPU的全局内存中</p>
+</li>
+<li>
+<p>由于用于权重的位宽较低，因此可以节省数据通信的时间，从而潜在地提升推理速度</p>
+</li>
+</ul>
+<p>在INT4精度下，GPTQ可以与FP16效果相当，而INT3下也只低了5%～10%。推理速度方面，GPTQ可以比FP16快3～5倍。</p>
+<h4>SmoothQuant</h4>
+<p>当模型规模更大时，单个token的值变化范围也较大（与LLM.int8()的观察一直，存在大量的离群特征），导致token相较weight难以量化。因此，很多量化方法都关注权重量化，在计算过程中主要就是权重参与，而输入token的激活值仍然是FP16的。但是这种只量化weight不量化Activation的想法，在矩阵计算时就需要使用FP16乘以INT8的矩阵乘法，这种计算效率是肯定比INT乘以INT8的计算效率低的。</p>
+<p>SmoothQuant意图解决这种激活值幅度变化大难以量化，而权重幅度变化相对较小的情况，平衡两者的量化难度。SmoothQuant通过数学上等价的逐通道缩放变化，将量化的难度从激活值转移到模型权重上。具体而言，SmoothQuant引入了平滑因子 $s$ 对权重 $W$ 和激活值 $X$ 进行缩放:</p>
+<p>$$Y = (X diag(s)^{-1}) · ((diag(s))W) = \hat{X}\hat{W}$$</p>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/f86ee24c-b071-4013-a325-4808a852bba4"><img src="https://github.com/user-attachments/assets/f86ee24c-b071-4013-a325-4808a852bba4" width="500" alt="SmoothQuant的缩放" style="max-width: 100%;"></a>
+</div>
+<ul>
+<li>
+<p>为了减少激活的量化难度，可以令 $s_j = max(|X_j|), j=1,2,...,C_j$ ，即第 $j$ 个channel的最大值。但是这种方法权重的量化难度会变得难以量化，因此需要引入另一个超参转移强度 $\alpha$</p>
+</li>
+<li>
+<p>得到平滑因子 $s_j = max(|X_j|)^{\alpha} / max(|W_j|)^{1-\alpha}$ ，这里的 $\alpha$ 可以根据激活值和权重的量化难易程度进行调整。对于大多数模型来说 $\alpha = 0.5$ （ $\alpha$ 取值较小时，激活值量化难度较大，反之则模型权重量化难度大）</p>
+</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/c45c7a21-4efe-4cef-81ad-0fe0ef103352"><img src="https://github.com/user-attachments/assets/c45c7a21-4efe-4cef-81ad-0fe0ef103352" width="500" alt="SmoothQuant的计算过程" style="max-width: 100%;"></a>
+</div>
+<p>得到这样Smooth变换后的激活值和权重矩阵，可以再采用per-token或per-tensor的量化方式。</p>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/7d02a592-1f92-4285-996b-b29b410c249a"><img src="https://github.com/user-attachments/assets/7d02a592-1f92-4285-996b-b29b410c249a" width="300" alt="不同的量化方式" style="max-width: 100%;"></a>
+</div>
+<p>SmoothQuant不会影响模型的推理效率，因为：</p>
+<ul>
+<li>
+<p>weight的放大可以再离线阶段完成</p>
+</li>
+<li>
+<p>而本层Activation的缩小可以被融合至上一层的计算中，不会增加额外的kernel调用</p>
+</li>
+</ul>
+<p>根据SmoothQuant的论文显示，SmoothQuant后推理的Latency可以降低20%-40%，而且得益于需要的内存变少了，批量推理的吞吐量可以提升数倍。</p>
+<h4>AWQ</h4>
+<p>AWQ的核心思想：“权重并不同等重要”。AWQ观察到权重里面有0.1%～1%的权重是非常重要的权重，如果对这些权重不量化，保持FP16的精度，那么会大大减少量化误差。</p>
+<p>为了寻找这些重要权重，AWQ做了相关的分析实验，与SmoothQuant里的经验结论一致，权重的分布相对平缓，因此依据权重分布选择重要权重是不合理的。与之相对，选择观测激活值的分布，选择对应输出比较大激活值的权重channel，认为这是一个比较重要的权重，依据此构建了一个按照激活值分布量化的算法，成为Activation-aware Weight Quantization，即激活感知权重量化算法。（这个方法有一定的局限性：保留显著权重为FP16可以提升量化后模型效果，但是这种方法并不硬件友好，会使模型效率降低。因此采用类似SmoothQuant的放缩方式进行处理，从而通过通过放大显著channel来减少其相对量化误差）</p>
+<p>具体而言，AWQ的量化通过网格搜索找到每个channel的最佳缩放因子scale：</p>
+<ul>
+<li>
+<p>原因：虽然使用更大的缩放比，显著权重的量化效果更好，但是如果是用来非常大的缩放比，非显著权重的channel被迫使用更小的动态范围，从而降低了模型性能。因此需要采用网格搜索的方法得到一个最优的缩放比，使得减少显著权重量化损失的同时也不能增加其他权重的量化损失。</p>
+</li>
+<li>
+<p>方法：为了同时考虑显著权重和非显著权重，AWQ通过最小化某层量化前后的差值来寻找最优缩放因子。</p>
+</li>
+</ul>
+<p>$$s^{*} = \mathop{\arg\min}\limits_{s} \cal{L}(s)$$</p>
+<p>$${\cal L}(s) = | Q({\mathbf W}·diag(s))(diag(s)^{-1} · {\mathbf X}) - \mathbf W \mathbf X  |$$</p>
+<p>其中 $s$ 时per-channel scaling的缩放因子， $s^{-1}· {\mathbf X}$ 可以被融合至前面的算子</p>
+<ul>
+<li>搜索策略：由于上述方法的量化函数 $Q$ 不可微，所以AWQ定义了搜索空间用于寻找最优的 $s$ ，这个 $s$ 只与激活值大小 $s_{\mathbf{X}}$ 有关，论文通过一个超参数 $\alpha$ 来平衡显著通道权重和非显著通道权重。另外使用weight clipping的方法来减少量化误差。</li>
+</ul>
+<p>$$s = {s_{\mathbf{X}}}^{\alpha}$$</p>
+<p>$$\alpha^{*} = \mathop{\arg\min}\limits_{s} \cal{L}({s_{\mathbf{X}}}^{\alpha})$$</p>
+<ul>
+<li>
+<p>其中 $s_{X}$ 是校准数据集的平均激活值，描述了权重的重要性</p>
+</li>
+<li>
+<p>上式将 $s$ 定义为以 $s_{\mathbf{X}}$ 为底数，超参数 $\alpha$ 为指数的固定形式，这个形式将缩放因子 $\alpha$ 的搜索过程，简化为超参数 $\alpha$ 的搜索过程</p>
+</li>
+<li>
+<p>好处：AWQ这个方法不依赖于任何反向传播或重建，只依赖校准集中activation的大小，与activation的实际分布无关（GPTQ与实际分布有关），因此能很好地保持LLM在不同领域和模式上的泛化能力，而不会过拟合到校准集。</p>
+</li>
+</ul>
+<h2>精简Attention</h2>
+<p>因为Attention的计算占据了模型推理的很大一部分计算资源，所以通过精简一些Attention计算的方法可以有效减少模型的运算量。</p>
+<ul>
+<li>
+<p>共享Attention：原本在每一层的Attention计算时，都使用多个注意力头来进行计算，即Multi Head Attention，MHA。可以通过注意力头共享一些参数的方式来减少运算量</p>
+</li>
+<li>
+<p>稀疏Attention：因为Attention机制本身是一个 $O(N^2)$ 的计算，即当前token要与前面所有token都计算注意力。但是并不是所有token都一样主要，所以可以跳过某些不重要的token，从而减少计算量。</p>
+</li>
+</ul>
+<h4>共享Attention参数-由MHA的思考</h4>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/1518e871-0424-4258-8823-d9eab1f8cc0b"><img src="https://github.com/user-attachments/assets/1518e871-0424-4258-8823-d9eab1f8cc0b" width="700" alt="不同的注意力计算方式" style="max-width: 100%;"></a>
+</div>
+<ul>
+<li>和先前模型加速技术中提到的一致，大模型的吞吐量很大程度被内存带宽限制住了，而内存中很大部分存的都是KV Cache。在MHA中每个注意力头都使用一组Q、K和V，从而依据多个头关注上下文的不同方面，但是这种多注意力头的形式也带来了计算量和KV Cache占用的增长。自然可以想到通过在一层的多头Attention之间共享KV参数来减少KV Cache的占用，提升模型吞吐量。</li>
+</ul>
+<h4>共享Attention参数-MQA (Multi Query Attention)</h4>
+<p>在MHA中，输入分别经过 $W_Q$ 、 $W_K$ 和 $W_V$ 的变换之后，都切成了 $n$ 份（ $n$ 即是头数），同时维度也从 $d_{model}$ 降到了 $d_{head}$ ，此后分别进行attention计算然后再进行拼接。</p>
+<p>在MQA中，经过线性变换后，只对 $Q$ 进行切分，而 $K$ 、 $V$ 则直接在线性变换的时候把维度降到了 $d_{head}$ （并不进行切分），然后用切分后的 $Q$ 分别和同一份 $K$ 、 $V$ 进行attention计算，之后把结果拼接起来。</p>
+<p>简单来说，就是MHA中，每个注意力头的 $K$ 、 $V$ 是不一样的，而MQA这里，每个注意力头的 $K$ 、 $V$ 是一样的，值是共享的。而其他步骤都和MHA一样。如此需要缓存的 $K$ 、 $V$ 值就从所有头的量变成了一个头的量。</p>
+<p>这种方法由于共享了多个头的参数，限制了模型的表达能力，虽然能更好地支持推理加速，但是在效果上比MHA差。</p>
+<h4>共享Attention参数-GQA (Grouped Query Attention)</h4>
+<p>因为MQA对效果会有影响，但是MHA占据的缓存很多，那么GQA提出了一个折中的办法，既能减少MQA效果的损失，又相比MHA需要更少的缓存。</p>
+<p>在GQA中， $Q$ 和MHA/MQA的做法不变，使用多套共享的 $K$ 、 $V$ ，形成多个group，同一个group内的 $Q$ 共享同一套 $K$ 、 $V$ ，不同group的 $Q$ 所用的 $K$ 、 $V$ 不同。</p>
+<p>如此一来，MHA可以看做group为n（头数）的GQA，而MQA可以看做group为1的GQA。</p>
+<h4>共享Attention参数-从MHA得到MQA和GQA</h4>
+<ul>
+<li>
+<p>从MHA得到MQA：将MHA中H个头的 $K$ 、 $V$ ，分别做mean pooling得到一个 $K$ 和 $V$ ，用得到的 $K$ 和 $V$ 继续训练</p>
+</li>
+<li>
+<p>从MHA得到MQA：将MHA中H个头的 $K$ 、 $V$ ，分别做mean pooling得到H个 $K$ 和 $V$ ，用得到的 $K$ 和 $V$ 继续训练</p>
+</li>
+</ul>
+<h4>共享Attention参数- MLA</h4>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/a60fb488-0406-4a98-b5e6-039d7c3e26bc"><img src="https://github.com/user-attachments/assets/a60fb488-0406-4a98-b5e6-039d7c3e26bc" width="700" alt="MLA与其他注意力计算方式对比" style="max-width: 100%;"></a>
+</div>
+<p>多头潜在注意力（MLA）将潜在特征表示纳入注意力机制，从而降低计算复杂度并改善上下文表示。其核心思想是对KV进行压缩后，再送入标准的MHA算法中，用一个更短的K，V向量来进行计算，从而减少KV Cache的大小。</p>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/4ddade7c-0587-4357-88b1-e3a1c4675b79"><img src="https://github.com/user-attachments/assets/4ddade7c-0587-4357-88b1-e3a1c4675b79" width="700" alt="MLA的计算过程" style="max-width: 100%;"></a>
+</div>
+<ol>
+<li>计算代表KV Cache的潜在向量</li>
+</ol>
+<p>$$[c_{t}^{KV}] = W^{DKV}{\mathbf h_t}$$</p>
+<p>其中， $c_t^{KV}$ 是在时间步t计算的键值缓存潜在向量。 $W^{DKV}$ 是一个权重矩阵，用于将隐藏状态 $\mathbf h_t$ 映射到键值缓存空间，这一步可以通过神经网络映射得到。总体而言， $c_t^{KV}$ 相对原来的 $\mathbf h_t$ 要小很多。</p>
+<ol start="2">
+<li>计算key和value的潜在向量</li>
+</ol>
+<p>$$[k_{t,1}^C;k_{t,2}^C;...;k_{t,n_h}^C] = k_{t}^C = W^{UK}c_{t}^{KV}$$</p>
+<p>$$[v_{t,1}^C;v_{t,2}^C;...;v_{t,n_h}^C] = v_{t}^C = W^{UK}c_{t}^{KV}$$</p>
+<p>$k_t^{C}$ 是键的潜在向量，通过将 $c_{t}^{KV}$ 与权重矩阵 $W^{UK}$ 相乘得到，这一步上采样，通过潜向量特征 $c_{t}^{KV}$ 映射得到较大的 $k_t^C$ 用于后续的注意力计算。 $v_t^{C}$ 的计算同理。</p>
+<ol start="3">
+<li>计算旋转位置编码</li>
+</ol>
+<p>$$k_t^{R}={RoPE}\left(W^{K R} \mathbf{h}_t\right)$$</p>
+<p>${RoPE}$ 是一种相对位置编码方式，用于在键向量中引入位置信息。</p>
+<ol start="4">
+<li>组合潜向量 $k$ 和位置编码 $k$ 得到最终的key向量</li>
+</ol>
+<p>$$k_{t, i}=\left[k_{t, i}^C ; k_t^R\right]$$</p>
+<p>最终的键向量 $k_{t,i}$ 是通过将内容相关的键向量 $k_{t, i}^C$ 和位置编码 $k_t^R$ 连接起来得到的。</p>
+<ol start="5">
+<li>计算query的潜在向量</li>
+</ol>
+<p>$$c_t^{Q} = W^{DQ}h_t$$</p>
+<p>$$[q_{t,1}^{C};q_{t,2}^{C};...;q_{t,n_h}^{C}] = q_t^C=W^{UQ}c_t^Q$$</p>
+<p>$$[q_{t,1}^{R};q_{t,2}^{R};...;q_{t,n_h}^{R}] = q_t^R={RoPE}({W^{QR}c_t^Q})$$</p>
+<p>$$q_{t,i}=[q_{t,i}^C;q_{t,i}^R]$$</p>
+<p>与 $k$ 向量的计算类似，通过潜在向量计算得到后续MHA计算的查询向量 $q$ 。</p>
+<ol start="6">
+<li>注意力计算</li>
+</ol>
+<p>最终的注意力输出 $u_t$ 是通过query  $\left(q_{t, i}\right)$ ，key $\left(k_{j, i}\right)$ 和value $\left(v_{j, i}^C\right)$ 结合起来计算得到的：</p>
+<p>$$o_{t,i} = \sum_{j=1}^{t} {Softmax}_j(\frac{\mathbf{q}_{t,i}^T \mathbf{k}_{j,i}}{\sqrt{d_h+d_h^R}})\mathbf{v}_{j,i}^C$$</p>
+<p>$$\mathbf{u}_t = W^o[\mathbf{o}_{t,1};\mathbf{o}_{t,2}; ...;\mathbf{o}_{t,n_h}]$$</p>
+<p>$\mathbf{o}_{t, i}$ 是第 $i$ 个注意力头的输出。</p>
+<p>通过上述的计算过程可以看到MLA是如何在推理时减少KV Cache的，实际上就是使用了降维的方法，把 $k,v$ 降维到一个隐空间中，然后在推理时只缓存 $c_t^{KV}$ 即可。这个 $c_t^{KV}$ 会在后面使用 $W^{UK},W^{UV}$ 升维，之后的计算与MHA是一致的。实际上，MLA计算时并不需要显式的计算出 $k_{t,i},v_{t,i}$ ，因为降维矩阵 $W^{UK}$ 和 $W^{UV}$ 可以被 $W^{UQ}$ 和 $W^{O}$ 通过预先计算的方式吸收。以不带位置编码时的 $q_t^Tk_t$ 为例：</p>
+<p>$$q_t^Tk_t = (W^{UQ}c_t^Q)^TW^{UK}c_t^{KV} = c_t^Q(W^{UQ})^TW^{UK}c_t^{KV}=c_t^{Q}Wc_t^{KV}$$</p>
+<p>可以看到，并不需要计算出 $W^{UK}$ ，可以把 $W^{UK}$ 吸收进 $W^{UQ}$ ，这样就避免了重复计算，并且可以让缓存的 $c_t^{KV}$ 直接参与计算，而不需要显式计算出 $k$ 。如此MLA在减少KV Cache的同时保留了KV Cache本身减少重复计算的功能。（实际操作时， $q$ 的输入也改为了低秩投影形式，这与减少KV Cache无关，主要是为了减少训练期间参数量和相应的梯度所占的显存）</p>
+<p>但是这种吸收无法直接应用 ${RoPE}$ 编码：</p>
+<p>$$q_tk_i^T = (x_tW_qR_t)(c_iW_kR_i)^T = x_t(W_qR_{t-i}W_k^T)c_i^T$$</p>
+<p>此时， $W_qR_{t-i}W_k^T$ 与位置差 $t-i$ 相关，就无法合并为一个固定的投影矩阵了。</p>
+<p>因此，MLA将 $QK$ 的位置信息部分和内容信息部分解耦开了，专门生成多头的 $q_t^R$ 和共享的 $k_t^R$ （共享的 $k_t^R$ 指的是每个头的 $k$ 都用这同一个 $k_t^R$ ）。然后再通过拼接的方式构造完整的 $Q$ 和 $K$ ：</p>
+<p>$$q_{t,i}^Tk_{j,i} = [c_t^Q(W^{UQ})^T,(q_t^R)^T]\begin{bmatrix}    W^{UK}c_t^{KV} \    k_t^R \end{bmatrix}$$</p>
+<p>$$[c_t^Q(W^{UQ})^T,(q_t^R)^T]\begin{bmatrix}    W^{UK}c_t^{KV} \    k_t^R \end{bmatrix} = c_t^Q(W^{UQ})^TW^{UK}c_t^{KV} +(q_t^R)^Tk_t^R$$</p>
+<p>在此设计下，MLA既减少了KV Cache，也保住了 ${RoPE}$ 的应用，同时还确保了没有重复计算。MLA节约了大量缓存并且性能很好，这种提升可以理解为虽然MLA增大了计算了，但是KV Cache的减少降低了显存和带宽的压力，在token的生成阶段，主要的速度瓶颈是带宽瓶颈和显存瓶颈，因此使用MLA可以明显提高生成的速度。</p>
+<h4>稀疏Attention-由self-attention的思考</h4>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/eacc8b49-4a78-45c9-950a-1644a37568d9"><img src="https://github.com/user-attachments/assets/eacc8b49-4a78-45c9-950a-1644a37568d9" width="700" alt="self-attention" style="max-width: 100%;"></a>
+</div>
+<p>对self-attention而言，需要对序列中的任意两个向量都需要计算相关度。上图的左子图显示了注意力矩阵，右子图显示了关联性，这意味着每个元素都跟序列内所有元素有关联。如果想要节省显存，加速计算，一个思路就是减少相关度计算，即认为每个元素只与序列中的一部分元素相关，这便是稀疏Attention的基本原理。</p>
+<h4>稀疏Attention-Atrous Self Attention</h4>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/be91ea6b-b893-40ee-b58c-15c4926f8e34"><img src="https://github.com/user-attachments/assets/be91ea6b-b893-40ee-b58c-15c4926f8e34" width="700" alt="Atrous self-attention" style="max-width: 100%;"></a>
+</div>
+<p>Atrous Self Attention受“膨胀卷积”（Atrous Convolution）的启发，对相关性进行了约束，强行要求每个元素只跟它相对距离为 $k, 2k, 3k,...$ 的元素关联，其中 $k \gt 1$ 是预先设定的超参数。从上左子图的注意力矩阵看，就是强行要求相对距离不是 $k$ 的倍数的位置的注意力为0（图中白色代表0）。</p>
+<p>在这种方法下，实际每个元素都只跟大约 $\frac{n}{k}$ 个元素算相关性，这样运行效率和显存占用都变成了 $O(n^2/k)$ ，也就是说能直接降低到原来的 $\frac{1}{k}$ 。</p>
+<h4>稀疏Attention-Local Self Attention</h4>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/669f9602-7c1c-4e00-b77f-f1715b0ec22d"><img src="https://github.com/user-attachments/assets/669f9602-7c1c-4e00-b77f-f1715b0ec22d" width="700" alt="Local self-attention" style="max-width: 100%;"></a>
+</div>
+<p>在计算机视觉领域，自注意力机制一直被统称为“Non Local”，与之相对的Local Self Attention就是放弃了全局的元素关联，重新引入局部关联。在实际处理上，就是约束每个元素只与前后 $k$ 个元素以及自身有关联。从上左子图的注意力矩阵来看，就是相对距离超过 $k$ 的注意力都直接设为0。实际而言，Local Self Attention和普通卷积很像，都保留了 $2k+1$ 大小的窗口，然后在窗口内进行一些运算。区别只是普通卷积是把窗口展平然后接一个全连接层得到输出，现在是窗口内通过注意力来加权平均得到输出。</p>
+<p>在这种方法下，实际每个元素都只跟 $2k+1$ 个元素算相关性，这样一来理想情况下运行效率和显存占用都变成了 $O((2k+1)n) \backsim O(kn)$ ，也就是说随着 $n$ 而线性增长，不过这个方法牺牲了长程关联性。</p>
+<h4>稀疏Attention-Sparse Self Attention</h4>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/8a610227-7111-4fc7-8f1b-0f3d01f5aec3"><img src="https://github.com/user-attachments/assets/8a610227-7111-4fc7-8f1b-0f3d01f5aec3" width="700" alt="Sparse self-attention" style="max-width: 100%;"></a>
+</div>
+<p>Sparse Self Attention是对Local Self Attention和Atrous Self Attention的交替使用，两者累积起来，理论上也是能学习到全局关联性的，同时还节省了显存。从上左子图的注意力矩阵来看，就是除了相对距离不超过 $k$ 的、相对距离为 $k, 2k, 3k,...$ 的注意力都直接设为0。如此一来，Attention就具有“局部紧密相关和远程稀疏相关”的特性。</p>
+<p><strong>稀疏Attention-Longformer</strong></p>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/a820d7c5-2a1f-4de8-93ff-8dbd57817389"><img src="https://github.com/user-attachments/assets/a820d7c5-2a1f-4de8-93ff-8dbd57817389" width="700" alt="不同注意力计算方式下的注意力矩阵" style="max-width: 100%;"></a>
+</div>
+<p>Longformer针对上图（a）的经典self attention进行改进，提出了Sliding Window Attention(滑窗机制，图b，类似Local Attention)、Dilated Sliding Window(空洞滑窗机制，图c)和Global+sliding window(融合全局信息的滑窗机制，图d)。</p>
+<ul>
+<li>
+<p>Sliding Window Attention：该机制设定了一个窗口 $w$ ，它规定序列中的每个token只能看到 $w$ 个token，其左右两侧能看到 $\frac{w}{2}$ 个token，因此它的时间复杂度是 $O(n \times w)$ 。同时，因为transformer模型结构本身是层层叠加的结构，模型高层比低层有着更宽广的感受野，从而有能力去建模融合全部序列信息的全局表示。在第 $l$ 层，感受野的范围将是 $l \times w$</p>
+</li>
+<li>
+<p>Dilated sliding Window：在对一个token进行self attention操作时，普通的Sliding Window Attention只能考虑到长度为 $w$ 的上下文，在不增加计算量的情况下，Longformer使用Dilated Sliding Window在进行Self Attemtion的两个相邻token之间放入大小为 $d$ 的间隙，这样序列中的每个token的感受野范围可扩展到 $d \times w$ 。在第 $m$ 层，感受野的范围将会是 $m \times d \times w$ 。研究表明，在进行Multi-Head Self Attention时，通过将一些头不设置Dilated Sliding Window以让模型聚焦在局部上下文，在某些头上设置Dilated Sliding Window以让模型聚焦在更长的上下文序列，这样可以提高模型表现。</p>
+</li>
+<li>
+<p>Global+silding Window：以上两种Attention机制不能完全适应所有task-specific任务，因此提出了Global+silding Window的机制，这种方法设定某些位置的token能够看见全部的token，同时其他的所有token也能看见这些位置的token，相当于将这些位置的token“暴露”在最外面。这些位置与具体的任务有关，例如对于分类任务，这个带有全局视角的token是"CLS"；对于QA任务，这些带有全局视角的token是Question对应的这些token。需要注意的是，计算Global Attention的 $k,q,v$ 时使用和计算Sliding Window的 $k,q,v$ 不同的参数。</p>
+</li>
+</ul>
+<p><strong>稀疏Attention-StreamingLLM</strong></p>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/d35ee915-809f-49c1-b3af-5b4dfa88e976"><img src="https://github.com/user-attachments/assets/d35ee915-809f-49c1-b3af-5b4dfa88e976" width="700" alt="不同注意力范围的注意力矩阵" style="max-width: 100%;"></a>
+</div>
+<p>根据StreamLLM的实验分析，对于上图（b）的Window Attention而言，其会缓存最近的 $L$ 个token的KV，但是一旦开头的token的KV被驱逐出Cache，模型推理的表现就会急剧下降。为解决这个问题的一个优化是图（c）的重算方法，让Window Attention重新计算，从每个新token的 $L$ 最近token中重建KV Cache。虽然这个方法在长文本上表现良好，但是由于上下文重新计算中的二次注意力计算，导致时间复杂度为 $O(TL^2)$ ，计算速度相当慢。</p>
+<p>经过进一步的分析，发现了如下现象：</p>
+<ul>
+<li>
+<p>仅仅减少注意力计算的第一个token，模型推理的PPL值就会急剧上升。这意味着开头的第一个token非常关键。</p>
+</li>
+<li>
+<p>通过分析attention每一层的注意力分布发现：</p>
+<ul>
+<li>
+<p>第一层和第二层的注意力图中离当前处理token最近的token收到了更多的attention，即attention矩阵对角线位置的值相对更大。</p>
+</li>
+<li>
+<p>除了网络前面的两层，模型在所有的layer和head都会给开头的几个token更多的attention值。</p>
+</li>
+</ul>
+</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/69962695-9079-430c-a266-e1f32655e371"><img src="https://github.com/user-attachments/assets/69962695-9079-430c-a266-e1f32655e371" width="700" alt="注意力热力图" style="max-width: 100%;"></a>
+</div>
+<p>基于上图对于Attention的观察，StreamingLLM提出了“attention sink”的概念来解释了Window Attention失败的原因：输入给LLM推理开头的几个initial tokens是非常特殊的，类似水池的排水口，吞噬了大量的attention。同时intial tokens与被预测token的距离如何，语义信息是什么都不重要，重要的只是它的绝对位置。也就是说前几个位置上的token不管是啥，对维持LLM推理的稳定性都很关键。</p>
+<p>补充：attention sink出现的原因（一种解释）</p>
+<p>在Attention机制中，Softmax的输出代表了key/query的匹配程度的概率。如果softmax在某个位置的值非常大，那么在反向传播时，这个位置的权重就会大幅度地更新。但是有时候attention并不确定哪个位置更值得关注，不过因为softmax需要所有位置的值的和为1，因此必须给某些位置较大的权重，这就可能导致错误的权重更新，这个错误在后续的过程中也很难被纠正。</p>
+<p>对此，Evan Miller发表了一篇博客《Attention Is Off by One》，在博客中他解释了这个softmax带来的问题，并提出了一个改进softmax的方法：通过给softmax的分母加1，让所有位置值可以加和不为1，从而给予Attention可以不对任何位置“表态”的权利。</p>
+<p>$$(softmax_1(x))_i = \frac{exp(x_i)}{1+\sum_jexp(x_j)}$$</p>
+<p>StreamingLLM在这个观点的基础上进一步认为，模型倾向于将不必要的注意力值转嫁给特定的token，而这些token就是初始token。</p>
+<p>基于上述的观察研究，StreamingLLM设计了Window Attention的改进版，其在当前滑动窗口方法基础上，重新引入了一些初始token的kv在注意力计算中使用。由此，StreamingLLM中的KV缓存可以分为两个部分：</p>
+<ul>
+<li>
+<p>attention_sink是4个初始token，稳定了注意力的计算。</p>
+</li>
+<li>
+<p>rolling KV Cache保留了最近的token，这个窗口是固定的，下图中为3。</p>
+</li>
+</ul>
+<div align="center">
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/2c09e6be-3550-445a-ae1c-7fac36348233"><img src="https://github.com/user-attachments/assets/2c09e6be-3550-445a-ae1c-7fac36348233" width="700" alt="StreamingLLM的计算示例" style="max-width: 100%;"></a>
+</div>
+<p>此外，还是用了一些小改动来给attention注入位置信息，从而使得StreamingLLM可以无缝地融入任何使用相对位置编码的自回归语言模型，如RoPE和ALiBi。通过上述办法，StreamingLLM不需要做训练，只用把初始token设置为4就可以获得不错的长输入下的推理表现。</p>
+<p>如果解除不训练模型的限制，通过Pre-training LLMs with attention sinks可以获得更好的表现。作者提出了两种方法：</p>
+<ul>
+<li>
+<p>指定一个全局可训练的attention sink token，称为“sink token”，它将作为不必要的注意力的存储库，从而把初始token作为attention sink的作用转移到sink token上。</p>
+</li>
+<li>
+<p>用类似Miller提出的SoftMax off-by-one的变体替换传统的Softmax函数，StreamingLLM称为Zero Sink方法</p>
+</li>
+</ul>
+<h2>投机采样</h2>
+<p>投机采样的核心思想：并非所有token的生成都很难，前面几个token的生成相对比较容易，可以使用小模型代劳，从而让小模型先生成一部分token再由大模型验证。</p>
+<p>投机采样的特点：投机采样并不会改变模型结构，而是通过让decoding阶段可以并发提高计算效率。</p>
+<p>投机采样的流程（假设有一个和大模型近似的小模型）：</p>
+<ul>
+<li>
+<p>小模型对prompt进行 $n$ 次推理，生成 $n$ 个token，记录所有的logits。</p>
+</li>
+<li>
+<p>将prompt和生成的 $n$ 个token组成新的prompt，一起送到大模型推理1次，得到推理结果的logits。（此时 $n$ 个token可以同时参与计算，计算访存比显著提升）</p>
+</li>
+<li>
+<p>将大模型和小模型的logits做对比，如果发现所有推理结果一致（计算相似度），则保留这些token，重新让小模型进行推理。</p>
+</li>
+<li>
+<p>如果发现第 $k$ 个token不一致，则保留第 $1...k$ 个token，大模型重新推理第 $k$ 个token，然后再重新让小模型开始新一轮推理。</p>
+</li>
+</ul>
+<p>这个投机采样的算法流程虽然看起来像是一个近似算法，但是它实际上是数学完备的，可以保证最终输出的结果和直接使用大模型推理的结果严格一致。本质上来说投机采样是利用了大模型推理n个token需要推理n次，而验证结果只需要推理1次的思想。</p>
+<p>一种理解方式：投机采样采用了一个原始目标模型和一个比原始模型小的多的近似模型，近似模型用于进行自回归串行采样，而原始目标模型用于评估采样结果。在解码过程中，某些token的解码相对容易，可以交给小模型处理，而有些token的解码很困难，交给大模型处理。这里的小模型可以采用与原始模型相同的结构，但参数更少，从而让计算量更小，而且减少了内存访问的需求。</p>
+<h2>参考笔记</h2>
+<p>LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale论文解读<a href="https://fancyerii.github.io/2024/01/16/int8/" rel="nofollow">https://fancyerii.github.io/2024/01/16/int8/</a></p>
+<p>模型量化 Quantization <a href="https://banxian-w.com/article/2024/9/11/2772.html#4.2%20GPTQ%20-%204%20%E4%BD%8D%E9%9D%9E%E5%AF%B9%E7%A7%B0%20PTQ" rel="nofollow">https://banxian-w.com/article/2024/9/11/2772.html#4.2%20GPTQ%20-%204%20%E4%BD%8D%E9%9D%9E%E5%AF%B9%E7%A7%B0%20PTQ</a></p>
+<p>GPTQ: 模型量化，穷鬼救星 <a href="https://zhuanlan.zhihu.com/p/616969812" rel="nofollow">https://zhuanlan.zhihu.com/p/616969812</a></p>
+<p>大模型量化技术原理-LLM.int8()、GPTQ <a href="https://blog.csdn.net/scgaliguodong123_/article/details/136176382" rel="nofollow">https://blog.csdn.net/scgaliguodong123_/article/details/136176382</a></p>
+<p>LLM（十一）：大语言模型的模型量化(INT8/INT4)技术 <a href="https://zhuanlan.zhihu.com/p/627436535" rel="nofollow">https://zhuanlan.zhihu.com/p/627436535</a></p>
+<p>大语言模型推理加速技术：模型压缩篇 <a href="https://zhuanlan.zhihu.com/p/667455383" rel="nofollow">https://zhuanlan.zhihu.com/p/667455383</a></p>
+<p>大语言模型量化相关技术 <a href="https://zhuanlan.zhihu.com/p/664054739" rel="nofollow">https://zhuanlan.zhihu.com/p/664054739</a></p>
+<p>理解Attention:从起源到MHA,MQA和GQA <a href="https://zhuanlan.zhihu.com/p/686149289" rel="nofollow">https://zhuanlan.zhihu.com/p/686149289</a></p>
+<p>Attention进阶史（MHA，MQA，GQA，MLA）<a href="https://www.gnn.club/?p=2729" rel="nofollow">https://www.gnn.club/?p=2729</a></p>
+<p>为节约而生：从标准Attention到稀疏Attention <a href="https://mp.weixin.qq.com/s?__biz=MzIwMTc4ODE0Mw==&amp;mid=2247498604&amp;idx=1&amp;sn=178bcb8827162a58a04d4ac131d03408&amp;chksm=96ea24eca19dadfa27b5bedb58ddd0d6924d4b9e410bb523636e1a7834dd0f5cdb5ec7a2e45b&amp;mpshare=1&amp;scene=1&amp;srcid=1211xlsVVTWl8oBM0HEjlwk6&amp;sharer_sharetime=1607702340523&amp;sharer_shareid=6de0f8e01e8c0625eda8ab4e997af088&amp;key=ec5faba1391b624a81f012ed8c2d4d2434a6abbc0262b3172078a063493c8bf9482ca39875577a46da3b18bb8d4b315fc95b59b1d88414ef92efc739e62158b8f0392dec87c4a8d6d42f8512e548cb6aa9d9cd2f722275a30a40711f6aa8d0c170cd2d5c320dfaeb89575fca886e972106a20736944c8da7cb0e321515d86f91&amp;ascene=1&amp;uin=MjAwMzE0NjU0NQ%3D%3D&amp;devicetype=Windows+10+x64&amp;version=62090070&amp;lang=zh_CN&amp;exportkey=AUNZm11axeAFWi9%2BGO9u4lk%3D&amp;pass_ticket=4YK02S64Ga8SiOQnwW2CZhb8lPVQDw9ZQhTUlcfnYY5e6IvbQAiTI%2FVap96j5Xy9&amp;wx_header=0" rel="nofollow">https://mp.weixin.qq.com/s?__biz=MzIwMTc4ODE0Mw==&amp;mid=2247498604&amp;idx=1&amp;sn=178bcb8827162a58a04d4ac131d03408&amp;chksm=96ea24eca19dadfa27b5bedb58ddd0d6924d4b9e410bb523636e1a7834dd0f5cdb5ec7a2e45b&amp;mpshare=1&amp;scene=1&amp;srcid=1211xlsVVTWl8oBM0HEjlwk6&amp;sharer_sharetime=1607702340523&amp;sharer_shareid=6de0f8e01e8c0625eda8ab4e997af088&amp;key=ec5faba1391b624a81f012ed8c2d4d2434a6abbc0262b3172078a063493c8bf9482ca39875577a46da3b18bb8d4b315fc95b59b1d88414ef92efc739e62158b8f0392dec87c4a8d6d42f8512e548cb6aa9d9cd2f722275a30a40711f6aa8d0c170cd2d5c320dfaeb89575fca886e972106a20736944c8da7cb0e321515d86f91&amp;ascene=1&amp;uin=MjAwMzE0NjU0NQ%3D%3D&amp;devicetype=Windows+10+x64&amp;version=62090070&amp;lang=zh_CN&amp;exportkey=AUNZm11axeAFWi9%2BGO9u4lk%3D&amp;pass_ticket=4YK02S64Ga8SiOQnwW2CZhb8lPVQDw9ZQhTUlcfnYY5e6IvbQAiTI%2FVap96j5Xy9&amp;wx_header=0</a></p>
+<p>一文看懂什么是Longformer <a href="https://zhuanlan.zhihu.com/p/405317918" rel="nofollow">https://zhuanlan.zhihu.com/p/405317918</a></p>
+<p>LLM推理技术之StreamingLLM：如何拥有无限生成能力 <a href="https://zhuanlan.zhihu.com/p/659875511" rel="nofollow">https://zhuanlan.zhihu.com/p/659875511</a></p>
+<p>缓存与效果的极限拉扯：从MHA、MQA、GQA到MLA <a href="https://kexue.fm/archives/10091" rel="nofollow">https://kexue.fm/archives/10091</a></p></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://SHADOWX-frank.github.io">My Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if("25/11/2024"!=""){
+    var startSite=new Date("25/11/2024");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行"+diffDay+"天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","SHADOWX-frank/SHADOWX-frank.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>
